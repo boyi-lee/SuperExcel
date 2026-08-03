@@ -5,7 +5,6 @@ import { MaterialsScreen } from "./screens/Materials";
 import { ProductsScreen } from "./screens/Products";
 import { MarginsScreen } from "./screens/Margins";
 import { PromotionsScreen } from "./screens/Promotions";
-import { ModelsScreen } from "./screens/Models";
 import { AboutScreen } from "./screens/About";
 import { SettingsScreen } from "./screens/Settings";
 import { BundlesScreen } from "./screens/Bundles";
@@ -28,11 +27,15 @@ const TABS = [
   { key: "groupbuy", label: "團購優惠" },
   { key: "content", label: "活動內容" },
   { key: "analysis", label: "營業分析" },
-  { key: "models", label: "語言模型" },
-  { key: "settings", label: "資料管理" },
 ] as const;
 
-type TabKey = (typeof TABS)[number]["key"];
+/**
+ * 資料管理不放進分頁列：它已經常駐在右上角了，列兩次只會讓人以為是兩個不同的地方。
+ * 但它仍然是一個可以切過去的畫面，所以型別要單獨帶上。
+ */
+const SETTINGS_TAB = { key: "settings", label: "資料管理" } as const;
+
+type TabKey = (typeof TABS)[number]["key"] | typeof SETTINGS_TAB.key;
 
 
 export function App() {
@@ -50,7 +53,7 @@ export function App() {
   const [dirty, setDirty] = useState(false);
 
   const storageOk = useMemo(() => isStorageAvailable(), []);
-  const currentTab = TABS.find((item) => item.key === tab) ?? TABS[0];
+  const currentTab = [...TABS, SETTINGS_TAB].find((item) => item.key === tab) ?? TABS[0];
 
   useEffect(() => {
     saveDoc(doc);
@@ -252,7 +255,6 @@ export function App() {
         {tab === "groupbuy" && <GroupBuyScreen doc={doc} onChange={update} />}
         {tab === "content" && <ContentScreen doc={doc} onChange={update} />}
         {tab === "analysis" && <AnalysisScreen doc={doc} onChange={update} />}
-        {tab === "models" && <ModelsScreen />}
         {tab === "settings" && (
           <SettingsScreen
             doc={doc}
@@ -280,9 +282,7 @@ export function App() {
 
       <footer className="mt-12 border-t border-line pt-6">
         <p className="text-sm leading-relaxed text-ink-3">
-          這個工具沒有後端，我們不蒐集也收不到你的任何資料。
-          唯一的例外是你自己在「語言模型」頁設定並使用第三方模型時，送出的內容會到那家供應商，
-          那一頁上有完整說明。
+          這個工具沒有後端，也不連任何外部服務。我們不蒐集，也收不到你的任何資料。
         </p>
 
         <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
