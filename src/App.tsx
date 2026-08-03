@@ -9,6 +9,7 @@ import { ModelsScreen } from "./screens/Models";
 import { AboutScreen } from "./screens/About";
 import { SettingsScreen } from "./screens/Settings";
 import { BundlesScreen } from "./screens/Bundles";
+import { ContentScreen } from "./screens/Content";
 import { DiscountsScreen } from "./screens/Discounts";
 import { GroupBuyScreen } from "./screens/GroupBuy";
 import { AnalysisScreen } from "./screens/Analysis";
@@ -25,6 +26,7 @@ const TABS = [
   { key: "discounts", label: "折扣變價" },
   { key: "promotions", label: "促銷試算" },
   { key: "groupbuy", label: "團購優惠" },
+  { key: "content", label: "活動內容" },
   { key: "analysis", label: "營業分析" },
   { key: "models", label: "語言模型" },
   { key: "settings", label: "資料管理" },
@@ -248,6 +250,7 @@ export function App() {
         {tab === "discounts" && <DiscountsScreen doc={doc} onChange={update} />}
         {tab === "promotions" && <PromotionsScreen doc={doc} onChange={update} />}
         {tab === "groupbuy" && <GroupBuyScreen doc={doc} onChange={update} />}
+        {tab === "content" && <ContentScreen doc={doc} onChange={update} />}
         {tab === "analysis" && <AnalysisScreen doc={doc} onChange={update} />}
         {tab === "models" && <ModelsScreen />}
         {tab === "settings" && (
