@@ -7,6 +7,7 @@
 // 這一頁算出來的平均客單價與廣告佔比，可以直接回填到「費率設定」，
 // 讓事前試算越用越準。
 
+import { BarLineChart } from "../components/Chart";
 import { Accordion, Button, Card, Field, Note, inputClass, money, pct } from "../components/ui";
 import { computeMonthlyMetrics, summarize } from "../lib/analysis";
 import { newId, type Doc, type MonthlyRecord } from "../lib/doc";
@@ -128,6 +129,46 @@ export function AnalysisScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Do
           </>
         )}
       </Card>
+
+      {records.length > 0 ? (
+        <Card title="趨勢" action={<span className="text-xs text-ink-3">營業額與退貨率</span>}>
+          <BarLineChart
+            points={records.map((record) => ({
+              label: record.month || "？",
+              bar: record.revenue,
+              line: computeMonthlyMetrics(record).returnRate,
+            }))}
+            barLabel="營業額"
+            lineLabel="退貨率"
+            formatBar={(value) => (value >= 10000 ? `${Math.round(value / 1000)}k` : String(Math.round(value)))}
+            formatLine={(value) => `${(value * 100).toFixed(0)}%`}
+          />
+          <p className="mt-3 text-xs leading-relaxed text-ink-3">
+            ⚠️ 營業額往上但退貨率也往上，多半是折扣或廣告換來的量，那種成長撐不久。
+            要留意的是兩條線的方向，不是單看長條有沒有變高。
+          </p>
+        </Card>
+      ) : null}
+
+      {records.length > 0 ? (
+        <Card title="趨勢" action={<span className="text-xs text-ink-3">營業額與廣告佔比</span>}>
+          <BarLineChart
+            points={records.map((record) => ({
+              label: record.month || "？",
+              bar: record.revenue,
+              line: computeMonthlyMetrics(record).adSpendRate,
+            }))}
+            barLabel="營業額"
+            lineLabel="廣告佔營收比"
+            formatBar={(value) => (value >= 10000 ? `${Math.round(value / 1000)}k` : String(Math.round(value)))}
+            formatLine={(value) => `${(value * 100).toFixed(0)}%`}
+          />
+          <p className="mt-3 text-xs leading-relaxed text-ink-3">
+            ⚠️ 廣告佔比一路往上而營業額只是持平，代表買量越來越貴。
+            這條線比營業額本身更早告訴你出事了。
+          </p>
+        </Card>
+      ) : null}
 
       <Card title="逐月數據" action={<span className="text-xs text-ink-3">留空代表還沒查，不是 0。</span>}>
         <div className="space-y-3">

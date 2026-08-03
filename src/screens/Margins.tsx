@@ -86,11 +86,12 @@ export function MarginsScreen({ doc }: { doc: Doc }) {
                   <th className="py-2 text-right">微利</th>
                   <th className="py-2 text-right">淨利</th>
                   <th className="py-2 text-right">淨利率</th>
+                  <th className="py-2 text-right">投報率</th>
                   <th className="py-2 text-right">最低售價</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ item, cost, margin, floor }) => (
+                {rows.map(({ item, cost, margin, roi, floor }) => (
                   <tr key={item.key} className="border-b border-line align-top">
                     <td className="py-2">
                       <span className="font-medium text-ink">{item.name || "未命名"}</span>
@@ -133,6 +134,16 @@ export function MarginsScreen({ doc }: { doc: Doc }) {
                       {pct(margin.netRate)}
                     </td>
                     <td className="py-2 text-right">
+                      {/* 投報率：這一塊錢成本換回多少淨利。決定該不該砍產品看這個。 */}
+                      {roi === null ? (
+                        <span className="text-ink-3">－</span>
+                      ) : (
+                        <span className={roi < 0 ? "font-semibold text-bad" : "font-semibold text-ink"}>
+                          {roi.toFixed(2)} 倍
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 text-right">
                       {floor.ok ? (
                         money(floor.floorPrice)
                       ) : floor.reason === "NO_COST" ? (
@@ -157,7 +168,21 @@ export function MarginsScreen({ doc }: { doc: Doc }) {
             <span className="font-semibold">微利</span> ＝ 毛利 − 變動銷售費用（金流、通路、稅、分潤）− 物流。
             <span className="font-semibold">淨利</span> ＝ 微利 − 固定費用分攤 − 廣告。
           </p>
-          <p>毛利是美好的，微利是緊張的，淨利是嚇人的。要看就看最後一欄。</p>
+          <p>毛利是美好的，微利是緊張的，淨利是嚇人的。要看就看淨利那一欄。</p>
+          <p>
+            <span className="font-semibold">投報率</span> ＝ 淨利 ÷ 單位成本，也就是這一塊錢的成本換回多少淨利。
+            決定一個產品該不該砍，看投報率比看淨利率準：淨利率高但成本也高的，
+            可能還輸給一個薄利多銷的。捨不得砍，那就當帶路雞，但要知道自己在做什麼。
+          </p>
+          {doc.settings.includeReturns ? (
+            <p className="text-warn">
+              已納入退貨率 {pct(rates.returnRate)}：營收打折但成本不打折
+              {doc.settings.returnsResaleable ? "（退回來的還能再賣，那一份成本算回收）" : "（退回來的不能再賣，成本全損）"}
+              {doc.settings.paysReturnShipping ? "，回程運費由你負擔" : ""}。
+            </p>
+          ) : (
+            <p>目前<span className="font-semibold">未納入退貨</span>，這些是「沒有人退貨」的理想數字。到費率設定可以開啟。</p>
+          )}
           <p>
             最低售價 ＝（單位成本 ＋ 每筆物流）÷（1 − 費率合計 − 期望淨利率）。
             分母 ≤ 0 時顯示「無解」：那代表賣多貴都達不到，不是一個很大的數字。

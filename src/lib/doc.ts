@@ -46,6 +46,15 @@ export type Settings = {
    * null 代表沒有這個資料，物流一律用每筆平均運費（保守估法）。
    */
   averageOrderValue: number | null;
+  /**
+   * 退貨的商品能不能再賣。食品、客製品通常不行。
+   * ⚠️ 這個開關會直接改變成本要不要全損，影響很大。
+   */
+  returnsResaleable: boolean;
+  /** 回程運費由你負擔嗎。 */
+  paysReturnShipping: boolean;
+  /** 把退貨率納入邊際貢獻與定價的計算。預設不納入，畫面會標示。 */
+  includeReturns: boolean;
 };
 
 export type Category = { id: string; name: string; behavior: CostBehavior; sortOrder: number };
@@ -273,6 +282,10 @@ export function emptyDoc(): Doc {
       adSpendMode: "NOT_INCLUDED",
       adSpendRate: null,
       averageOrderValue: null,
+      returnsResaleable: false,
+      paysReturnShipping: true,
+      // 🚫 預設不納入。看到「有納入退貨」的數字卻其實沒納入，比沒有這個功能更糟。
+      includeReturns: false,
     },
     categories: [
       cat("主要物料", "MATERIAL", 10),

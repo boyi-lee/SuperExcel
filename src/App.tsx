@@ -255,6 +255,12 @@ export function App() {
             onExport={handleExport}
             onImportJson={(file) => void handleImportJson(file)}
             onImportXlsx={(file) => void handleImportXlsx(file)}
+            onLoadSlot={(next) => {
+              setDoc(next);
+              // 讀進來的是這台電腦上的另一份，不是剛下載過的檔，所以仍算未存檔。
+              setDirty(true);
+              notify("已讀取。這一份跟主檔存在同一個瀏覽器裡，記得另外下載一份到硬碟。");
+            }}
             onReset={() => {
               if (!confirm("清空所有資料並重新開始？沒有下載過的內容會永久消失。")) return;
               setDoc(emptyDoc());

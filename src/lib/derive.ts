@@ -3,10 +3,11 @@
 // 計算本身在 costing.ts（純函式），這裡只做取數與組裝。
 
 import {
-  computeMargin,
+  computeMarginWithReturns,
   effectiveTaxShare,
   floorPrice,
   logisticsCost,
+  returnOnCost,
   rollupBom,
   totalPercentRate,
   weightedRate,
@@ -221,12 +222,25 @@ export type ProductMargin = {
   item: PricedItem;
   cost: ProductCost;
   margin: MarginResult;
+  /** 這一項換回多少淨利。決定產品該不該砍，看這個比看淨利率準。 */
+  roi: number | null;
   floor: ReturnType<typeof floorPrice>;
 };
+
+/** 退貨設定收成一包。退貨率取自「費率設定」裡的退貨率加權平均。 */
+export function returnAdjustmentFor(doc: Doc) {
+  return {
+    returnRate: doc.settings.includeReturns ? deriveRates(doc).returnRate : 0,
+    resaleable: doc.settings.returnsResaleable,
+    paysReturnShipping: doc.settings.paysReturnShipping,
+  };
+}
 
 export function computeProductMargins(doc: Doc, channelId: string | null, targetRate: number): ProductMargin[] {
   const rates = deriveRates(doc);
   const breakdown = rateBreakdownFor(doc, channelId);
+
+  const adjustment = returnAdjustmentFor(doc);
 
   return listPricedItems(doc).map((item) => {
     const cost = computeProductCost(doc, item.product, item.variant);
@@ -234,17 +248,21 @@ export function computeProductMargins(doc: Doc, channelId: string | null, target
     // 物流按營收比例攤，但以每筆平均運費為上限。
     const logistics = logisticsCost(price, rates.logistics, doc.settings.averageOrderValue);
 
+    const marginInput = {
+      price,
+      manufacturingCost: cost.unitCost,
+      logistics,
+      variableSellingRate: breakdown.variableSelling,
+      overheadRate: breakdown.overhead,
+      adSpendRate: breakdown.adSpend,
+    };
+    const margin = computeMarginWithReturns(marginInput, adjustment);
+
     return {
       item,
       cost,
-      margin: computeMargin({
-        price,
-        manufacturingCost: cost.unitCost,
-        logistics,
-        variableSellingRate: breakdown.variableSelling,
-        overheadRate: breakdown.overhead,
-        adSpendRate: breakdown.adSpend,
-      }),
+      margin,
+      roi: returnOnCost(margin.netProfit, cost.unitCost),
       floor: floorPrice({
         manufacturingCost: cost.unitCost,
         // 下限是「多低才不行」，物流用整筆平均運費是保守的一邊，寧可算貴不要算便宜。

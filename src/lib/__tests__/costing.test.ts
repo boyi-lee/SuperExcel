@@ -6,11 +6,13 @@ import { describe, expect, it } from "vitest";
 import {
   computeDiscount,
   computeMargin,
+  computeMarginWithReturns,
   effectiveTaxShare,
   floorPrice,
   lineCost,
   logisticsCost,
   priceForNetProfit,
+  returnOnCost,
   rollupBom,
   simulateGroupBuy,
   simulatePromotion,
@@ -345,7 +347,8 @@ describe("促銷折抵", () => {
     expect(computeDiscount([{ trigger: "AMOUNT", discount: "FIXED", threshold: 5000, value: 200 }], basket)).toBe(0);
   });
 
-  it("多條規則加總", () => {
+  it("折上再折：後面的％算在前面折完的餘額上", () => {
+    // 先折 200 剩 1800，再折 5% 是 90，合計 290 而不是 300。
     const discount = computeDiscount(
       [
         { trigger: "AMOUNT", discount: "FIXED", threshold: 1000, value: 200 },
@@ -353,7 +356,39 @@ describe("促銷折抵", () => {
       ],
       basket,
     );
-    expect(discount).toBe(300);
+    expect(discount).toBe(290);
+  });
+
+  it("⚠️ 順序會改變結果：先折現跟先折％不一樣", () => {
+    const fixedFirst = computeDiscount(
+      [
+        { trigger: "AMOUNT", discount: "FIXED", threshold: 1000, value: 200 },
+        { trigger: "COUPON", discount: "PERCENT", threshold: 1000, value: 0.05 },
+      ],
+      basket,
+    );
+    const percentFirst = computeDiscount(
+      [
+        { trigger: "COUPON", discount: "PERCENT", threshold: 1000, value: 0.05 },
+        { trigger: "AMOUNT", discount: "FIXED", threshold: 1000, value: 200 },
+      ],
+      basket,
+    );
+    // 先折％：2000×5% = 100，再折 200，合計 300。
+    expect(percentFirst).toBe(300);
+    expect(fixedFirst).not.toBe(percentFirst);
+  });
+
+  it("🚫 門檻用原價小計判斷，不是用折後餘額", () => {
+    // 先折 1200 剩 800，第二條的門檻 1000 仍然算達標，因為原價是 2000。
+    const discount = computeDiscount(
+      [
+        { trigger: "AMOUNT", discount: "FIXED", threshold: 1000, value: 1200 },
+        { trigger: "AMOUNT", discount: "FIXED", threshold: 1000, value: 100 },
+      ],
+      basket,
+    );
+    expect(discount).toBe(1300);
   });
 
   it("🚫 折抵不得超過小計（不會倒貼現金）", () => {
@@ -524,5 +559,89 @@ describe("團購", () => {
     expect(result.profitable).toBeNull();
     // 給團主多少錢不需要成本就算得出來，仍應回傳。
     expect(result.partnerPayout).toBe(180);
+  });
+});
+
+describe("退貨", () => {
+  // 售價 1000、成本 300、物流 60、費率合計 10%（變動銷售 6＋分攤 3＋廣告 1）。
+  const base = {
+    price: 1000,
+    manufacturingCost: 300 as number | null,
+    logistics: 60,
+    variableSellingRate: 0.06,
+    overheadRate: 0.03,
+    adSpendRate: 0.01,
+  };
+  const noReturn = { returnRate: 0, resaleable: false, paysReturnShipping: false };
+
+  it("退貨率 0 時跟沒有退貨完全一樣", () => {
+    expect(computeMarginWithReturns(base, noReturn)).toEqual(computeMargin(base));
+  });
+
+  it("⚠️ 營收打折但成本不打折：東西已經做出來也寄出去了", () => {
+    // 退 10%、不能再賣、回程運費自付。
+    const result = computeMarginWithReturns(base, {
+      returnRate: 0.1,
+      resaleable: false,
+      paysReturnShipping: true,
+    });
+
+    // 實收 900，製造成本仍是 300（全損），物流 60×1.1 = 66。
+    expect(result.grossContribution).toBe(600);
+    // 微利：600 − 900×0.06 − 66 = 480
+    expect(result.operatingContribution).toBe(480);
+    // 淨利：480 − 900×0.03 − 1000×0.01 = 443
+    expect(result.netProfit).toBe(443);
+  });
+
+  it("🚫 不得把成本也乘上 (1−退貨率)，那等於假設退貨的東西沒被做出來過", () => {
+    const lost = computeMarginWithReturns(base, { returnRate: 0.1, resaleable: false, paysReturnShipping: false });
+    // 若成本也打折，毛利會是 900 − 270 = 630。實際上是 600。
+    expect(lost.grossContribution).toBe(600);
+    expect(lost.grossContribution).not.toBe(630);
+  });
+
+  it("退回來還能再賣時，那一份的製造成本才算回收", () => {
+    const resale = computeMarginWithReturns(base, { returnRate: 0.1, resaleable: true, paysReturnShipping: false });
+    const scrap = computeMarginWithReturns(base, { returnRate: 0.1, resaleable: false, paysReturnShipping: false });
+    expect(resale.grossContribution! - scrap.grossContribution!).toBe(30);
+  });
+
+  it("⚠️ 廣告花掉就是花掉了，不會因為退貨退回來", () => {
+    const result = computeMarginWithReturns(base, { returnRate: 0.5, resaleable: true, paysReturnShipping: false });
+    expect(result.adSpendCost).toBe(10);
+  });
+
+  it("退貨一定讓淨利變差", () => {
+    const clean = computeMargin(base).netProfit!;
+    const withReturns = computeMarginWithReturns(base, {
+      returnRate: 0.1,
+      resaleable: true,
+      paysReturnShipping: false,
+    }).netProfit!;
+    expect(withReturns).toBeLessThan(clean);
+  });
+
+  it("🚫 成本未知時仍然是 null", () => {
+    const result = computeMarginWithReturns({ ...base, manufacturingCost: null }, { ...noReturn, returnRate: 0.1 });
+    expect(result.netProfit).toBeNull();
+  });
+});
+
+describe("投報率", () => {
+  it("這一塊錢成本換回多少淨利", () => {
+    expect(returnOnCost(300, 100)).toBe(3);
+  });
+
+  it("⚠️ 淨利率高不代表投報率高", () => {
+    // A：售價 1000、成本 800、淨利 150 → 淨利率 15%，投報率 0.19
+    // B：售價 100、成本 20、淨利 30 → 淨利率 30%，投報率 1.5
+    expect(returnOnCost(150, 800)!).toBeLessThan(returnOnCost(30, 20)!);
+  });
+
+  it("🚫 成本為 0 或未知時回 null，不回無限大", () => {
+    expect(returnOnCost(300, 0)).toBeNull();
+    expect(returnOnCost(300, null)).toBeNull();
+    expect(returnOnCost(null, 100)).toBeNull();
   });
 });

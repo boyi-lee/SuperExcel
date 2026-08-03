@@ -4,9 +4,10 @@
 //    所以這一頁不能只是四顆按鈕，每一顆旁邊都要寫清楚它實際上會做什麼、
 //    以及不做會怎樣。使用者以為資料自動保存，是這個架構最大的風險。
 
-import { useRef } from "react";
-import { Button, Card, Note } from "../components/ui";
-import type { Doc } from "../lib/doc";
+import { useRef, useState } from "react";
+import { Button, Card, Field, Note, inputClass } from "../components/ui";
+import { newId, type Doc } from "../lib/doc";
+import { MAX_SLOTS, deleteSlot, loadSlots, saveSlot, type SavedSlot } from "../lib/saves";
 
 export function SettingsScreen({
   doc,
@@ -16,6 +17,7 @@ export function SettingsScreen({
   onImportJson,
   onImportXlsx,
   onReset,
+  onLoadSlot,
 }: {
   doc: Doc;
   dirty: boolean;
@@ -24,7 +26,21 @@ export function SettingsScreen({
   onImportJson: (file: File) => void;
   onImportXlsx: (file: File) => void;
   onReset: () => void;
+  onLoadSlot: (doc: Doc) => void;
 }) {
+  const [slots, setSlots] = useState<SavedSlot[]>(() => loadSlots());
+  const [slotName, setSlotName] = useState("");
+  const [slotError, setSlotError] = useState<string | null>(null);
+
+  const applySlotResult = (result: ReturnType<typeof saveSlot>) => {
+    if (result.ok) {
+      setSlots(result.slots);
+      setSlotError(null);
+      return true;
+    }
+    setSlotError(result.error);
+    return false;
+  };
   const jsonRef = useRef<HTMLInputElement>(null);
   const xlsxRef = useRef<HTMLInputElement>(null);
 
@@ -128,6 +144,102 @@ export function SettingsScreen({
             </div>
           </div>
         </div>
+      </Card>
+
+      {/*
+        ⚠️ 這一區跟「下載存檔」是兩件事，說明必須把它講清楚。
+           使用者以為自己有備份，結果清一次瀏覽器全沒了，那是最糟的情況。
+      */}
+      <Card title="這台電腦上的多份存檔">
+        <Note tone="warn">
+          這幾份跟主檔存在<span className="font-semibold">同一個瀏覽器裡</span>，
+          清除瀏覽器資料時會一起消失。它解決的是「想試另一組費率又不想弄丟現在這組」，
+          <span className="font-semibold">不是備份</span>。真正的備份只有一種：下載 JSON 到你自己的硬碟。
+        </Note>
+
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <Field label="這一份要叫什麼" className="min-w-[16rem] flex-1">
+            <input
+              className={inputClass}
+              value={slotName}
+              placeholder="例如：漲價前、雙11 版本"
+              onChange={(event) => setSlotName(event.target.value)}
+            />
+          </Field>
+          <Button
+            disabled={slotName.trim() === ""}
+            onClick={() => {
+              const ok = applySlotResult(
+                saveSlot(slots, {
+                  id: newId(),
+                  name: slotName.trim(),
+                  savedAt: new Date().toISOString(),
+                  doc,
+                }),
+              );
+              if (ok) setSlotName("");
+            }}
+          >
+            存成新的一份
+          </Button>
+        </div>
+
+        {slotError ? (
+          <div className="mt-3">
+            <Note tone="danger">{slotError}</Note>
+          </div>
+        ) : null}
+
+        <div className="mt-4 space-y-2">
+          {slots.map((slot) => (
+            <div
+              key={slot.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel-2 p-3"
+            >
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-ink">{slot.name}</div>
+                <div className="mt-0.5 text-xs text-ink-3">
+                  {new Date(slot.savedAt).toLocaleString("zh-TW", { hour12: false })}　
+                  物料 {slot.doc.materials.length}　產品 {slot.doc.products.length}　費率 {slot.doc.rates.length}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    if (!confirm(`讀取「${slot.name}」？目前畫面上的資料會被整份取代。`)) return;
+                    onLoadSlot(slot.doc);
+                  }}
+                >
+                  讀取
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    if (!confirm(`用目前的資料覆蓋「${slot.name}」？`)) return;
+                    applySlotResult(saveSlot(slots, { ...slot, savedAt: new Date().toISOString(), doc }));
+                  }}
+                >
+                  覆蓋
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    if (!confirm(`刪除「${slot.name}」？`)) return;
+                    applySlotResult(deleteSlot(slots, slot.id));
+                  }}
+                >
+                  刪除
+                </Button>
+              </div>
+            </div>
+          ))}
+          {slots.length === 0 ? <p className="text-sm text-ink-3">還沒有存過任何一份。</p> : null}
+        </div>
+
+        <p className="mt-3 text-xs text-ink-3">
+          目前 {slots.length} / {MAX_SLOTS} 份。存太多份會撐爆瀏覽器配額，也不會有人回頭整理。
+        </p>
       </Card>
 
       <Card title="從 Excel 匯入">

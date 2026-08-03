@@ -97,6 +97,70 @@ export function RatesScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Doc) 
           </span>
         </label>
 
+        {/*
+          ⚠️ 退貨不是一項成本，它是「營收先發生、然後被退掉」。
+             所以這裡問的是兩個真正會改變算法的問題：東西能不能再賣、回程運費誰付。
+        */}
+        <fieldset className="mt-4 rounded-lg border border-line p-4">
+          <legend className="px-2 text-sm font-semibold text-ink">退貨</legend>
+
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={doc.settings.includeReturns}
+              onChange={(event) => setSettings({ includeReturns: event.target.checked })}
+            />
+            <span className="text-sm text-ink-2">
+              把退貨率算進邊際貢獻與定價
+              <span className="mt-1 block text-xs text-ink-3">
+                目前的退貨率是 {pct(rates.returnRate)}（來自下面「退貨率」那一區的加權平均）。
+                不勾選時，下面的數字是「沒有人退貨」的理想狀況。
+              </span>
+            </span>
+          </label>
+
+          {doc.settings.includeReturns ? (
+            <div className="mt-3 space-y-3 border-t border-line pt-3">
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={doc.settings.returnsResaleable}
+                  onChange={(event) => setSettings({ returnsResaleable: event.target.checked })}
+                />
+                <span className="text-sm text-ink-2">
+                  退回來的商品還能再賣
+                  <span className="mt-1 block text-xs text-ink-3">
+                    不能再賣時，那一份的製造成本全損。食品、客製品通常不能再賣。
+                  </span>
+                </span>
+              </label>
+
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={doc.settings.paysReturnShipping}
+                  onChange={(event) => setSettings({ paysReturnShipping: event.target.checked })}
+                />
+                <span className="text-sm text-ink-2">
+                  回程運費由我負擔
+                  <span className="mt-1 block text-xs text-ink-3">
+                    退一次就多寄一趟，而且出貨那一趟的錢也拿不回來。
+                  </span>
+                </span>
+              </label>
+
+              <Note>
+                退貨的算法是：<span className="font-semibold">營收打折，但成本不打折</span>。
+                東西已經做出來、也已經寄出去了，只有在還能再賣的情況下那一份成本才算回收。
+                廣告費也不會因為退貨退回來。
+              </Note>
+            </div>
+          ) : null}
+        </fieldset>
+
         <fieldset className="mt-4 rounded-lg border border-line p-4">
           <legend className="px-2 text-sm font-semibold text-ink">廣告費</legend>
           <div className="grid gap-3">

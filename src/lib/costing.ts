@@ -281,6 +281,87 @@ export function floorPrice(input: FloorPriceInput): FloorPriceResult {
   };
 }
 
+// ──────────────────────────────────────────────────────────── 退貨
+
+export type ReturnAdjustment = {
+  /** 退貨率 0 至 1。 */
+  returnRate: number;
+  /** 退回來的商品能不能再賣。食品、客製品通常不行。 */
+  resaleable: boolean;
+  /** 回程運費由你負擔嗎。 */
+  paysReturnShipping: boolean;
+};
+
+/**
+ * 把退貨算進去。
+ *
+ * ⚠️ 退貨**不是一項成本**，它的順序是：先有營收 → 才有退貨 → 營收減少。
+ *    所以正確的做法是把營收打折，而不是把退貨當成一筆費用攤進去。
+ *
+ * 🚫 但成本不會跟著打折：東西已經做出來、也已經寄出去了。
+ *    只有在退回來還能再賣的情況下，那一份的製造成本才算回收。
+ *    把成本也一起乘 (1−退貨率)，等於假設退貨的東西從來沒被做出來過。
+ *
+ * 回程運費另計：退一次就多寄一趟，出貨那一趟的錢也拿不回來。
+ */
+export function computeMarginWithReturns(input: MarginInput, adjustment: ReturnAdjustment): MarginResult {
+  const rate = adjustment.returnRate;
+  if (!(rate > 0) || rate >= 1) return computeMargin(input);
+
+  const kept = 1 - rate;
+  const revenue = input.price * kept;
+
+  // 費用照實收算：通路抽成與稅退貨時多半會退。
+  const variableSellingCost = roundTo(revenue * input.variableSellingRate, 4);
+  const overheadCost = roundTo(revenue * input.overheadRate, 4);
+  // 廣告已經花掉了，不會因為退貨退回來，所以照原本的售價算。
+  const adSpendCost = roundTo(input.price * input.adSpendRate, 4);
+  const logistics = roundTo(input.logistics * (1 + (adjustment.paysReturnShipping ? rate : 0)), 4);
+
+  const costs = { variableSellingCost, overheadCost, adSpendCost, logistics };
+
+  if (input.manufacturingCost === null || !(input.price > 0)) {
+    return {
+      grossContribution: null,
+      grossRate: null,
+      operatingContribution: null,
+      operatingRate: null,
+      netProfit: null,
+      netRate: null,
+      ...costs,
+    };
+  }
+
+  const manufacturing = adjustment.resaleable ? input.manufacturingCost * kept : input.manufacturingCost;
+  const gross = revenue - manufacturing;
+  const operating = gross - variableSellingCost - logistics;
+  const net = operating - overheadCost - adSpendCost;
+
+  return {
+    grossContribution: roundTo(gross, 4),
+    // 比率一律用原售價當分母，才能跟沒有退貨的版本直接對照。
+    grossRate: roundTo(gross / input.price, 6),
+    operatingContribution: roundTo(operating, 4),
+    operatingRate: roundTo(operating / input.price, 6),
+    netProfit: roundTo(net, 4),
+    netRate: roundTo(net / input.price, 6),
+    ...costs,
+  };
+}
+
+/**
+ * 投報率：這一塊錢的製造成本換回多少淨利。
+ *
+ * ⚠️ 這是「這個產品該不該砍」的判準，跟淨利率是兩回事。
+ *    淨利率高但成本也高的產品，投報率可能還輸給一個薄利多銷的。
+ * 🚫 成本為 0 時回 null 而不是無限大：那多半是還沒填成本，不是真的免費。
+ */
+export function returnOnCost(netProfit: number | null, manufacturingCost: number | null): number | null {
+  if (netProfit === null || manufacturingCost === null) return null;
+  if (!(manufacturingCost > 0)) return null;
+  return roundTo(netProfit / manufacturingCost, 4);
+}
+
 // ──────────────────────────────────────────────────────────── 反推售價
 
 export type PriceForProfitInput = {
@@ -360,22 +441,28 @@ export type BasketInput = {
 /**
  * 算出一組促銷規則對這一籃商品的折抵金額。
  *
- * ⚠️ 多條規則採**加總**而非取最優：實務上滿額折加優惠券是可以疊加的，
- *    要互斥請設計成不同的情境分別試算。
+ * ⚠️ **折上再折是有順序的，而且順序會改變結果。**
+ *    規則按傳進來的順序依序套用，每一條的折扣％都是算在**上一條折完之後的餘額**上。
+ *    先折 100 再打九折，跟先打九折再折 100，客人付的錢不一樣。
+ *    通路的活動長什麼樣，這裡就要排成什麼樣。
+ *
+ * 🚫 門檻一律用**原價小計**判斷，不是用折後餘額。
+ *    否則第一條折完之後就跌破第二條的門檻，跟通路的實際行為不符。
  * 🚫 折抵不得超過小計（不會倒貼現金），也不會是負數。
  */
 export function computeDiscount(rules: readonly PromotionRuleInput[], basket: BasketInput): number {
-  let discount = 0;
+  let remaining = basket.subtotal;
 
   for (const rule of rules) {
     const meets =
       rule.trigger === "QUANTITY" ? basket.quantity >= rule.threshold : basket.subtotal >= rule.threshold;
     if (!meets) continue;
 
-    discount += rule.discount === "PERCENT" ? basket.subtotal * rule.value : rule.value;
+    const taken = rule.discount === "PERCENT" ? remaining * rule.value : rule.value;
+    remaining = Math.max(remaining - taken, 0);
   }
 
-  return roundTo(Math.min(Math.max(discount, 0), basket.subtotal), 2);
+  return roundTo(Math.min(Math.max(basket.subtotal - remaining, 0), basket.subtotal), 2);
 }
 
 export type GiftRuleInput = {

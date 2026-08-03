@@ -106,6 +106,15 @@ export function PromotionsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: 
       addOns: promotion.addOns.map((addOn) => (addOn.id === addOnId ? { ...addOn, ...patch } : addOn)),
     });
 
+  /** 把某一條規則往前或往後移。折上再折的順序會改變結果，所以一定要能排。 */
+  const moveRule = (promotion: Promotion, index: number, delta: number) => {
+    const target = index + delta;
+    if (target < 0 || target >= promotion.rules.length) return;
+    const rules = [...promotion.rules];
+    [rules[index], rules[target]] = [rules[target], rules[index]];
+    setPromotion(promotion.id, { rules });
+  };
+
   const addRule = (promotion: Promotion) =>
     setPromotion(promotion.id, {
       rules: [
@@ -244,9 +253,41 @@ export function PromotionsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: 
               </Field>
             </div>
 
+            {promotion.rules.length > 1 ? (
+              <div className="mt-4">
+                <Note tone="warn">
+                  <span className="font-semibold">折上再折是有順序的，而且順序會改變客人付的錢。</span>
+                  下面的規則由上往下依序套用，每一條的％都算在上一條折完的餘額上。
+                  先折 200 再打 95 折，跟先打 95 折再折 200，結果不一樣。
+                  通路的活動長什麼樣，這裡就排成什麼樣。
+                </Note>
+              </div>
+            ) : null}
+
             <div className="mt-4 space-y-2">
-              {promotion.rules.map((rule) => (
-                <div key={rule.id} className="grid grid-cols-1 items-end gap-3 rounded-lg border border-line p-3 sm:grid-cols-2 lg:grid-cols-4">
+              {promotion.rules.map((rule, ruleIndex) => (
+                <div key={rule.id} className="grid grid-cols-1 items-end gap-3 rounded-lg border border-line p-3 sm:grid-cols-2 lg:grid-cols-5">
+                  <div className="flex items-center gap-2 lg:order-first">
+                    <span className="font-mono text-xs text-ink-3">第 {ruleIndex + 1} 步</span>
+                    <button
+                      type="button"
+                      aria-label="往前移"
+                      disabled={ruleIndex === 0}
+                      onClick={() => moveRule(promotion, ruleIndex, -1)}
+                      className="rounded border border-line px-2 py-1 text-xs text-ink-2 disabled:text-ink-3"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="往後移"
+                      disabled={ruleIndex === promotion.rules.length - 1}
+                      onClick={() => moveRule(promotion, ruleIndex, 1)}
+                      className="rounded border border-line px-2 py-1 text-xs text-ink-2 disabled:text-ink-3"
+                    >
+                      ↓
+                    </button>
+                  </div>
                   <Field label="門檻類型">
                     <select
                       className={inputClass}
