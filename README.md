@@ -113,10 +113,15 @@ Vercel 會自動認出 Vite 專案，不需要額外設定，也不需要任何�
 
 ## 寫程式的規矩
 
-`npm test` 裡有一條掃描測試，會擋下不該進入這個 repo 的字串：內部專案代號、
-客戶名稱、平台名稱、內部工單編號，以及**破折號**（要停頓就用全形冒號或逗號）。
-規則寫在 [`src/__tests__/forbidden-strings.test.ts`](src/__tests__/forbidden-strings.test.ts)，
-掃描範圍是整個 repo（不含 `node_modules` 與建置產物）。
+`npm test` 裡有兩條掃描測試，掃描範圍是整個 repo（不含 `node_modules` 與建置產物）：
+
+- [`forbidden-strings.test.ts`](src/__tests__/forbidden-strings.test.ts) 擋下不該進入這個 repo 的字串：
+  內部專案代號、客戶名稱、平台名稱、內部工單編號，以及**破折號**（要停頓就用全形冒號或逗號）。
+- [`punctuation.test.ts`](src/__tests__/punctuation.test.ts) 擋下中文句子裡的**半形逗號**。
+  它只掃非測試檔：測試裡會故意放半形逗號來驗 CSV 跳脫，那是測試資料不是行文。
+
+另外 [`contrast.test.ts`](src/__tests__/contrast.test.ts) 會實際計算色票的對比度，
+確保每一種文字顏色在每一種底色上都達到 WCAG AA 的 4.5:1。
 
 ## 授權
 

@@ -86,7 +86,7 @@ export function ContentScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Doc
 
         {doc.bundles.length === 0 ? (
           <div className="mt-3">
-            <Note tone="warn">還沒有組合。請先到「商品組合」建立一個,確認可行之後再回來產生內容。</Note>
+            <Note tone="warn">還沒有組合。請先到「商品組合」建立一個，確認可行之後再回來產生內容。</Note>
           </div>
         ) : null}
       </Card>
@@ -101,7 +101,7 @@ export function ContentScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Doc
             <Card title="這些品項還沒有商品詳情">
               <Note tone="warn">
                 下面 {block.missingDetails.length} 項沒有詳情，所以產生出來的內容會少掉那幾段說明。
-                這裡直接補就好,不用跑回產品頁。缺的地方我們不會自動編一段文案填進去。
+                這裡直接補就好，不用跑回產品頁。缺的地方我們不會自動編一段文案填進去。
               </Note>
 
               <div className="mt-4 space-y-3">
