@@ -10,7 +10,9 @@ import {
   floorPrice,
   lineCost,
   logisticsCost,
+  priceForNetProfit,
   rollupBom,
+  simulateGroupBuy,
   simulatePromotion,
   totalPercentRate,
   weightedRate,
@@ -243,6 +245,85 @@ describe("折扣下限", () => {
   });
 });
 
+describe("反推售價", () => {
+  const base = {
+    manufacturingCost: 300,
+    percentRate: 0.2,
+    averageLogistics: 60,
+    averageOrderValue: null as number | null,
+  };
+
+  it("沒有客單價資料時，物流固定，一次方程式解得出來", () => {
+    // (100 + 300 + 60) / (1 − 0.2) = 575
+    const result = priceForNetProfit({ ...base, targetProfit: 100 });
+    expect(result.ok && result.price).toBe(575);
+  });
+
+  it("反推出來的售價確實達到目標淨利（自洽檢查）", () => {
+    const result = priceForNetProfit({ ...base, targetProfit: 100 });
+    if (!result.ok) throw new Error("預期有解");
+
+    const margin = computeMargin({
+      price: result.price,
+      manufacturingCost: base.manufacturingCost,
+      logistics: logisticsCost(result.price, base.averageLogistics, base.averageOrderValue),
+      variableSellingRate: base.percentRate,
+      overheadRate: 0,
+      adSpendRate: 0,
+    });
+    expect(margin.netProfit).toBeCloseTo(100, 2);
+  });
+
+  it("有客單價時要挑對物流那一段（低於客單價走按比例）", () => {
+    const input = { ...base, averageOrderValue: 2000, targetProfit: 100 };
+    const result = priceForNetProfit(input);
+    if (!result.ok) throw new Error("預期有解");
+
+    // 解出來的售價低於客單價，物流還沒攤滿，驗證它自洽。
+    expect(result.price).toBeLessThan(2000);
+    const margin = computeMargin({
+      price: result.price,
+      manufacturingCost: input.manufacturingCost,
+      logistics: logisticsCost(result.price, input.averageLogistics, input.averageOrderValue),
+      variableSellingRate: input.percentRate,
+      overheadRate: 0,
+      adSpendRate: 0,
+    });
+    expect(margin.netProfit).toBeCloseTo(100, 2);
+  });
+
+  it("目標很高時落到封頂那一段，一樣要自洽", () => {
+    const input = { ...base, averageOrderValue: 500, targetProfit: 800 };
+    const result = priceForNetProfit(input);
+    if (!result.ok) throw new Error("預期有解");
+
+    expect(result.price).toBeGreaterThan(500);
+    const margin = computeMargin({
+      price: result.price,
+      manufacturingCost: input.manufacturingCost,
+      logistics: logisticsCost(result.price, input.averageLogistics, input.averageOrderValue),
+      variableSellingRate: input.percentRate,
+      overheadRate: 0,
+      adSpendRate: 0,
+    });
+    expect(margin.netProfit).toBeCloseTo(800, 2);
+  });
+
+  it("🚫 費率吃掉全部售價時無解，不得回一個很大的數字", () => {
+    expect(priceForNetProfit({ ...base, percentRate: 1.2, targetProfit: 100 })).toEqual({
+      ok: false,
+      reason: "IMPOSSIBLE",
+    });
+  });
+
+  it("成本未知時明確回 NO_COST", () => {
+    expect(priceForNetProfit({ ...base, manufacturingCost: null, targetProfit: 100 })).toEqual({
+      ok: false,
+      reason: "NO_COST",
+    });
+  });
+});
+
 describe("促銷折抵", () => {
   const basket = { subtotal: 2000, quantity: 3 };
 
@@ -290,6 +371,9 @@ describe("促銷試算", () => {
     basket: { subtotal: 2000, quantity: 2 },
     rules,
     costPerUnit: 300 as number | null,
+    giftCost: 0 as number | null,
+    addOnRevenue: 0,
+    addOnCost: 0 as number | null,
     averageLogistics: 60,
     // 沒有客單價資料，物流固定 60，方便手算對照。
     averageOrderValue: null,
@@ -320,6 +404,37 @@ describe("促銷試算", () => {
   it("折太多會變負淨利", () => {
     const deep = [{ trigger: "AMOUNT" as const, discount: "PERCENT" as const, threshold: 1000, value: 0.8 }];
     expect(simulatePromotion({ ...base, rules: deep }).profitable).toBe(false);
+  });
+
+  it("贈品只算製造成本，沒有營收", () => {
+    // 送一份成本 80 的贈品，淨利就少 80，實收不變。
+    const result = simulatePromotion({ ...base, giftCost: 80 });
+    expect(result.netRevenue).toBe(1600);
+    expect(result.netProfit).toBe(700);
+  });
+
+  it("🚫 贈品成本未知時整體淨利也未知，不能把贈品當免費", () => {
+    const result = simulatePromotion({ ...base, giftCost: null });
+    expect(result.netProfit).toBeNull();
+    expect(result.profitable).toBeNull();
+  });
+
+  it("加價購有營收也有成本，而且不分攤廣告", () => {
+    // 加價購 200 元、成本 50。廣告率 0 的情況下先確認基本收支。
+    const result = simulatePromotion({ ...base, addOnRevenue: 200, addOnCost: 50 });
+    expect(result.collected).toBe(1800);
+    // 費用：1800×(0.06+0.03) 變動銷售與分攤 ＋ 1600×0.01 廣告（只算主商品）＋ 60 物流 = 238
+    // 淨利：1800 − (600 + 50) − 238 = 912
+    expect(result.netProfit).toBe(912);
+  });
+
+  it("⚠️ 廣告只攤在主商品上，不攤到加價購", () => {
+    const withAd = { ...base, adSpendRate: 0.1, addOnRevenue: 1000, addOnCost: 0 };
+    const result = simulatePromotion(withAd);
+    const withoutAddOn = simulatePromotion({ ...withAd, addOnRevenue: 0 });
+    // 多收 1000 元加價購，廣告費不該跟著多 100。
+    const adOnAddOn = (result.netProfit ?? 0) - (withoutAddOn.netProfit ?? 0);
+    expect(adOnAddOn).toBeGreaterThan(0);
   });
 
   it("🚫 成本未知時 profitable 為 null 而非 true", () => {
@@ -360,5 +475,54 @@ describe("費率合計（原始試算表 的售固係數）", () => {
       adSpend: 0,
     });
     expect(total).toBeCloseTo(0.647619, 6);
+  });
+});
+
+describe("團購", () => {
+  const base = {
+    subtotal: 1000,
+    quantity: 2,
+    costPerUnit: 150 as number | null,
+    discount: 0.9,
+    partnerShare: 0.2,
+    absorbsShipping: true,
+    averageLogistics: 60,
+    averageOrderValue: null as number | null,
+    variableSellingRate: 0.08,
+    overheadRate: 0.15,
+    adSpendRate: 0,
+  };
+
+  it("團主毛利是從結帳金額抽走的", () => {
+    const result = simulateGroupBuy(base);
+    expect(result.checkout).toBe(900);
+    expect(result.partnerPayout).toBe(180);
+    expect(result.yourRevenue).toBe(720);
+  });
+
+  it("⚠️ 費用仍按結帳金額算，不是按你實收的算", () => {
+    // 通路與金流是照成交金額收的，不會因為你分了兩成給團主就少收。
+    const result = simulateGroupBuy(base);
+    // 900 − 180 − 300 − 900×0.23 − 60 = 153
+    expect(result.netProfit).toBe(153);
+  });
+
+  it("未達免運門檻時運費不算你的成本（團員自付）", () => {
+    const absorbed = simulateGroupBuy(base);
+    const notAbsorbed = simulateGroupBuy({ ...base, absorbsShipping: false });
+    expect(notAbsorbed.logistics).toBe(0);
+    expect(notAbsorbed.netProfit! - absorbed.netProfit!).toBe(60);
+  });
+
+  it("團主毛利給太多會直接虧", () => {
+    expect(simulateGroupBuy({ ...base, partnerShare: 0.6 }).profitable).toBe(false);
+  });
+
+  it("🚫 成本未知時淨利為 null，不得當成有賺", () => {
+    const result = simulateGroupBuy({ ...base, costPerUnit: null });
+    expect(result.netProfit).toBeNull();
+    expect(result.profitable).toBeNull();
+    // 給團主多少錢不需要成本就算得出來，仍應回傳。
+    expect(result.partnerPayout).toBe(180);
   });
 });

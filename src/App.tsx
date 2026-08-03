@@ -8,6 +8,9 @@ import { PromotionsScreen } from "./screens/Promotions";
 import { ModelsScreen } from "./screens/Models";
 import { AboutScreen } from "./screens/About";
 import { SettingsScreen } from "./screens/Settings";
+import { DiscountsScreen } from "./screens/Discounts";
+import { GroupBuyScreen } from "./screens/GroupBuy";
+import { AnalysisScreen } from "./screens/Analysis";
 import { downloadDoc, emptyDoc, isStorageAvailable, loadDoc, parseDoc, saveDoc, type Doc } from "./lib/doc";
 import { importSuperExcel } from "./lib/import-xlsx";
 
@@ -17,36 +20,25 @@ const TABS = [
   { key: "materials", label: "物料與供應商" },
   { key: "products", label: "產品與用料" },
   { key: "margins", label: "邊際貢獻與定價" },
+  { key: "discounts", label: "折扣變價" },
   { key: "promotions", label: "促銷試算" },
+  { key: "groupbuy", label: "團購優惠" },
+  { key: "analysis", label: "營業分析" },
   { key: "models", label: "語言模型" },
   { key: "settings", label: "資料管理" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
 
-/** 記住使用者看過來由頁了。跟試算資料無關，所以不放進 Doc（也就不會進匯出檔）。 */
-const SEEN_KEY = "superexcel.seenAbout.v1";
-
-function markAboutSeen(): void {
-  try {
-    localStorage.setItem(SEEN_KEY, "1");
-  } catch {
-    // 無痕模式寫不進去。頂多每次都先看到說明，不影響功能。
-  }
-}
-
-function hasSeenAbout(): boolean {
-  try {
-    return localStorage.getItem(SEEN_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
 
 export function App() {
   const [doc, setDoc] = useState<Doc>(() => loadDoc() ?? emptyDoc());
-  // 第一次進來先看來由，不要一開場就丟一堆欄位。看過之後記住，下次直接進費率設定。
-  const [tab, setTab] = useState<TabKey>(() => (hasSeenAbout() ? "rates" : "about"));
+  /*
+    ⚠️ 每次進來都從說明頁開始，不記住「看過了」。
+       這個工具算出來的數字會跟使用者原本的試算表不一樣，而且通常更難看。
+       沒先讀過為什麼就直接看到數字，第一反應會是「這程式壞了」而不是「我以前算漏了」。
+  */
+  const [tab, setTab] = useState<TabKey>("about");
   const [menuOpen, setMenuOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -245,19 +237,15 @@ export function App() {
       <p className="mt-6 font-mono text-xs uppercase tracking-widest text-acid sm:hidden">{currentTab.label}</p>
 
       <main className="mt-3 space-y-6 sm:mt-6">
-        {tab === "about" && (
-          <AboutScreen
-            onStart={() => {
-              markAboutSeen();
-              setTab("rates");
-            }}
-          />
-        )}
+        {tab === "about" && <AboutScreen onStart={() => setTab("rates")} />}
         {tab === "rates" && <RatesScreen doc={doc} onChange={update} />}
         {tab === "materials" && <MaterialsScreen doc={doc} onChange={update} />}
         {tab === "products" && <ProductsScreen doc={doc} onChange={update} />}
         {tab === "margins" && <MarginsScreen doc={doc} />}
+        {tab === "discounts" && <DiscountsScreen doc={doc} onChange={update} />}
         {tab === "promotions" && <PromotionsScreen doc={doc} onChange={update} />}
+        {tab === "groupbuy" && <GroupBuyScreen doc={doc} onChange={update} />}
+        {tab === "analysis" && <AnalysisScreen doc={doc} onChange={update} />}
         {tab === "models" && <ModelsScreen />}
         {tab === "settings" && (
           <SettingsScreen
@@ -278,12 +266,49 @@ export function App() {
         )}
       </main>
 
-      <footer className="mt-12 border-t border-line pt-6 text-sm text-ink-3">
-        <p>
-          開源專案，以 AGPL-3.0 授權釋出。這個工具沒有後端，我們不蒐集也收不到你的任何資料。
+      <footer className="mt-12 border-t border-line pt-6">
+        <p className="text-sm leading-relaxed text-ink-3">
+          這個工具沒有後端，我們不蒐集也收不到你的任何資料。
           唯一的例外是你自己在「語言模型」頁設定並使用第三方模型時，送出的內容會到那家供應商，
           那一頁上有完整說明。
         </p>
+
+        <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.png"
+              alt=""
+              className="hidden h-11 w-11 shrink-0 rounded-full"
+              onLoad={(event) => event.currentTarget.classList.remove("hidden")}
+            />
+            <div>
+              <div className="text-sm font-semibold text-ink">酒Ann</div>
+              <div className="font-mono text-[11px] uppercase leading-relaxed tracking-wider text-ink-3">
+                AI Application &amp; Developer
+                <br />
+                Online Educator &amp; Customized Creator
+              </div>
+            </div>
+          </div>
+
+          <div className="text-xs leading-relaxed text-ink-3 sm:text-right">
+            <div>Copyright 2026 酒Ann　授權 AGPL-3.0-or-later</div>
+            <div className="mt-1">
+              <a className="text-acid underline" href="mailto:cpw688@gmail.com">
+                cpw688@gmail.com
+              </a>
+              <span className="px-2 text-line">|</span>
+              <a
+                className="text-acid underline"
+                href="https://github.com/Joanna8521/SuperExcel"
+                target="_blank"
+                rel="noreferrer"
+              >
+                GitHub 原始碼
+              </a>
+            </div>
+          </div>
+        </div>
       </footer>
     </div>
   );

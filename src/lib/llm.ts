@@ -19,6 +19,29 @@ export type ProviderId =
   | "groq"
   | "ollama";
 
+/**
+ * 這家能不能從瀏覽器直接呼叫。
+ *
+ * ⚠️ 這是**這個工具能不能用**的關鍵，不是效能問題。
+ *    純前端沒有後端可以代打，供應商如果不回 CORS 標頭，
+ *    帶授權標頭的預檢請求會被瀏覽器擋掉，連送都送不出去。
+ *
+ * "yes"     直接可用
+ * "header"  要多帶一個標頭才放行
+ * "local"   本機服務，要自己設定允許的來源
+ * "no"      政策上不接受瀏覽器直接呼叫，換一家就好
+ * "unknown" 沒有實測過，不確定
+ */
+export type BrowserAccess = "yes" | "header" | "local" | "no" | "unknown";
+
+export const BROWSER_ACCESS_LABEL: Record<BrowserAccess, string> = {
+  yes: "可從瀏覽器直接用",
+  header: "要多帶一個標頭",
+  local: "跑在本機，要開放來源",
+  no: "不能從瀏覽器直接用",
+  unknown: "未實測",
+};
+
 export type Provider = {
   id: ProviderId;
   name: string;
@@ -35,6 +58,10 @@ export type Provider = {
   fitFor: string;
   /** 去哪裡拿金鑰。null 代表不需要。 */
   keyUrl: string | null;
+  /** 能不能從瀏覽器直接呼叫。 */
+  browserAccess: BrowserAccess;
+  /** 關於瀏覽器呼叫的補充說明。 */
+  accessNote: string | null;
 };
 
 /**
@@ -55,6 +82,8 @@ export const PROVIDERS: Provider[] = [
     editableBaseUrl: true,
     fitFor: "綜合能力最強，中文與長文推理穩定。",
     keyUrl: "https://console.anthropic.com/settings/keys",
+    browserAccess: "header",
+    accessNote: "要在請求裡加上 anthropic-dangerous-direct-browser-access: true 才會放行。",
   },
   {
     id: "openai",
@@ -66,6 +95,8 @@ export const PROVIDERS: Provider[] = [
     editableBaseUrl: true,
     fitFor: "最多人已經有帳號，文件與範例最多。",
     keyUrl: "https://platform.openai.com/api-keys",
+    browserAccess: "no",
+    accessNote: "OpenAI 不接受從瀏覽器直接呼叫，帶授權標頭的預檢請求會被擋下。這是他們的政策，不是設定問題，換一家供應商就好。",
   },
   {
     id: "google",
@@ -77,6 +108,8 @@ export const PROVIDERS: Provider[] = [
     editableBaseUrl: true,
     fitFor: "有免費額度，適合先試用再決定。",
     keyUrl: "https://aistudio.google.com/apikey",
+    browserAccess: "yes",
+    accessNote: null,
   },
   {
     id: "deepseek",
@@ -88,6 +121,8 @@ export const PROVIDERS: Provider[] = [
     editableBaseUrl: true,
     fitFor: "便宜，量大時成本差很多。",
     keyUrl: "https://platform.deepseek.com/api_keys",
+    browserAccess: "unknown",
+    accessNote: "沒有實測過。如果被瀏覽器擋下，那就是對方沒開放跨來源呼叫，換一家。",
   },
   {
     id: "moonshot",
@@ -99,6 +134,8 @@ export const PROVIDERS: Provider[] = [
     editableBaseUrl: true,
     fitFor: "長文，一次丟整份報表也吃得下。",
     keyUrl: "https://platform.moonshot.cn/console/api-keys",
+    browserAccess: "unknown",
+    accessNote: "沒有實測過。如果被瀏覽器擋下，那就是對方沒開放跨來源呼叫，換一家。",
   },
   {
     id: "zhipu",
@@ -110,6 +147,8 @@ export const PROVIDERS: Provider[] = [
     editableBaseUrl: true,
     fitFor: "中國方案，境內連線穩定。",
     keyUrl: "https://open.bigmodel.cn/usercenter/apikeys",
+    browserAccess: "unknown",
+    accessNote: "沒有實測過。如果被瀏覽器擋下，那就是對方沒開放跨來源呼叫，換一家。",
   },
   {
     id: "minimax",
@@ -121,6 +160,8 @@ export const PROVIDERS: Provider[] = [
     editableBaseUrl: true,
     fitFor: "中國方案。",
     keyUrl: "https://platform.minimaxi.com/user-center/basic-information",
+    browserAccess: "unknown",
+    accessNote: "沒有實測過。如果被瀏覽器擋下，那就是對方沒開放跨來源呼叫，換一家。",
   },
   {
     id: "groq",
@@ -132,6 +173,8 @@ export const PROVIDERS: Provider[] = [
     editableBaseUrl: true,
     fitFor: "速度極快，有免費額度。",
     keyUrl: "https://console.groq.com/keys",
+    browserAccess: "yes",
+    accessNote: null,
   },
   {
     id: "ollama",
@@ -144,6 +187,8 @@ export const PROVIDERS: Provider[] = [
     editableBaseUrl: true,
     fitFor: "零 API 費用，資料完全不出這台電腦。",
     keyUrl: null,
+    browserAccess: "local",
+    accessNote: "跑在你自己的電腦上。要讓網頁連得到，啟動 Ollama 前得先設定 OLLAMA_ORIGINS 允許這個網站。",
   },
 ];
 

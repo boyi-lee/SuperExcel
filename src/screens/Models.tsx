@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { Button, Card, Field, Note, inputClass } from "../components/ui";
 import {
+  BROWSER_ACCESS_LABEL,
   PROVIDERS,
   clearLlmSettings,
   findProvider,
@@ -44,6 +45,15 @@ export function ModelsScreen() {
             共用電腦請用完就按「清除金鑰」。
             金鑰<span className="font-semibold">不會</span>寫進「下載存檔」的 JSON：那個檔案可以安心傳給別人。
           </Note>
+          {provider !== null && provider.browserAccess === "no" ? (
+            <Note tone="danger">
+              <span className="font-semibold">{provider.name} 不能從這裡直接用。</span>
+              {provider.accessNote}
+            </Note>
+          ) : null}
+          {provider !== null && provider.accessNote !== null && provider.browserAccess !== "no" ? (
+            <Note tone="warn">{provider.accessNote}</Note>
+          ) : null}
           {provider !== null && !provider.needsApiKey ? (
             <Note>
               你選的是本機模型，資料不會離開這台電腦，也不會產生 API 費用。
@@ -70,8 +80,12 @@ export function ModelsScreen() {
               >
                 <span className="block text-sm font-semibold text-ink">{item.name}</span>
                 <span className="mt-1 block text-xs text-ink-3">{item.fitFor}</span>
-                <span className="mt-2 block text-xs text-ink-3">
-                  {item.needsApiKey ? "需要 API 金鑰" : "不需要金鑰，跑在本機"}
+                <span className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <span className="text-ink-3">{item.needsApiKey ? "需要 API 金鑰" : "不需要金鑰"}</span>
+                  {/* ⚠️ 能不能從瀏覽器直接呼叫是「能不能用」的問題，要標在選之前。 */}
+                  <span className={item.browserAccess === "no" ? "font-semibold text-bad" : "text-ink-3"}>
+                    {BROWSER_ACCESS_LABEL[item.browserAccess]}
+                  </span>
                 </span>
               </button>
             );

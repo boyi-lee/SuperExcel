@@ -118,6 +118,35 @@ export type PromotionRule = {
   value: number;
 };
 
+/**
+ * 贈品。
+ *
+ * ⚠️ 贈品有成本沒有營收，是活動最容易爆掉的地方。
+ *    可累贈與不可累贈差很多：滿 1000 送 1，客人買 5000 時可累贈要送 5 份。
+ */
+export type GiftRule = {
+  id: string;
+  trigger: "AMOUNT" | "QUANTITY";
+  threshold: number;
+  /** 送哪一項（可定價品項的 key）。null 代表還沒選。 */
+  itemKey: string | null;
+  /** 每次達標送幾份。 */
+  quantity: number;
+  stackable: boolean;
+};
+
+/** 加價購。有營收也有成本，跟贈品不同。 */
+export type AddOnRule = {
+  id: string;
+  itemKey: string | null;
+  /** 客人加購要多付的單價。 */
+  price: number;
+  quantity: number;
+};
+
+/** 活動適用範圍。全館與指定品的成本結構完全不同，不能混為一談。 */
+export type PromotionScope = "ALL" | "SELECTED";
+
 export type Promotion = {
   id: string;
   name: string;
@@ -125,7 +154,78 @@ export type Promotion = {
   channelRateId: string | null;
   /** 分潤比例（團購團主毛利等）。 */
   partnerShare: number | null;
+  scope: PromotionScope;
+  /** scope 為 SELECTED 時，活動只適用這些品項。 */
+  selectedItemKeys: string[];
   rules: PromotionRule[];
+  gifts: GiftRule[];
+  addOns: AddOnRule[];
+};
+
+/**
+ * 折扣級距。金額越大折越多，三檔給你在同一個門檻下試不同力道。
+ *
+ * ⚠️ 存的是**折數**不是折扣率：0.92 代表 92 折（收 92%），不是折 92%。
+ *    兩種寫法在中文裡都叫「折扣」，存錯方向會讓試算結果完全顛倒。
+ */
+export type DiscountTier = {
+  id: string;
+  /** 小計達到多少元適用這一列。 */
+  threshold: number;
+  /** 折得最少。 */
+  light: number;
+  mid: number;
+  /** 折得最多。這一檔最容易爆掉，所以畫面要特別標。 */
+  deep: number;
+};
+
+/**
+ * 團購級距。結帳金額越高，給團員的折數越好、給團主的毛利也越好。
+ *
+ * ⚠️ 只填一列就是「單一折扣式」：不管買多少都同一個折數、同一個團主毛利。
+ *    填多列就是「變價式」，牽涉到人性的錯綜複雜，要想清楚再開。
+ */
+export type GroupBuyTier = {
+  id: string;
+  /** 團員原價小計達到多少元適用這一列。 */
+  threshold: number;
+  /** 折數 0 至 1。 */
+  discount: number;
+  /** 團主毛利比例，從團員結帳金額裡抽走。 */
+  partnerShare: number;
+};
+
+export type GroupBuy = {
+  id: string;
+  name: string;
+  leaderName: string;
+  channelRateId: string | null;
+  /**
+   * 免運門檻。達到就由你吸收運費，未達則團員自付。
+   * null 代表沒有免運，運費一律團員自付。
+   */
+  freeShippingThreshold: number | null;
+  tiers: GroupBuyTier[];
+};
+
+/**
+ * 每月營業數據。事後分析用，跟前面的事前試算是兩件事。
+ *
+ * 🚫 每一格都可以是 null，代表「還沒填」而不是 0。
+ *    退貨數填 0 是「這個月沒退貨」，留空是「還沒去查」，兩者差很多。
+ */
+export type MonthlyRecord = {
+  id: string;
+  /** 年月，格式 2026-03。用字串是因為它是標籤不是日期運算。 */
+  month: string;
+  revenue: number | null;
+  orders: number | null;
+  returnedOrders: number | null;
+  repeatOrders: number | null;
+  /** 這個月實際花掉的廣告費。 */
+  adSpend: number | null;
+  /** 這個月的檔期或備註，例如「母親節」。 */
+  note: string | null;
 };
 
 export type Doc = {
@@ -139,6 +239,9 @@ export type Doc = {
   products: Product[];
   rates: Rate[];
   promotions: Promotion[];
+  discountTiers: DiscountTier[];
+  groupBuys: GroupBuy[];
+  monthlyRecords: MonthlyRecord[];
 };
 
 export function newId(): string {
@@ -182,6 +285,10 @@ export function emptyDoc(): Doc {
     products: [],
     rates: [],
     promotions: [],
+    // 🚫 折扣表也留白。預填一組看起來合理的折數，等於幫使用者決定他的定價策略。
+    discountTiers: [],
+    groupBuys: [],
+    monthlyRecords: [],
   };
 }
 
@@ -196,7 +303,17 @@ export function normalizeDoc(doc: Doc): Doc {
     ...doc,
     settings: { ...emptyDoc().settings, ...doc.settings },
     suppliers: doc.suppliers ?? [],
-    promotions: doc.promotions ?? [],
+    promotions: (doc.promotions ?? []).map((promotion) => ({
+      ...promotion,
+      scope: promotion.scope ?? "ALL",
+      selectedItemKeys: promotion.selectedItemKeys ?? [],
+      rules: promotion.rules ?? [],
+      gifts: promotion.gifts ?? [],
+      addOns: promotion.addOns ?? [],
+    })),
+    discountTiers: doc.discountTiers ?? [],
+    groupBuys: (doc.groupBuys ?? []).map((groupBuy) => ({ ...groupBuy, tiers: groupBuy.tiers ?? [] })),
+    monthlyRecords: doc.monthlyRecords ?? [],
     products: (doc.products ?? []).map((product) => ({
       ...product,
       lines: product.lines ?? [],

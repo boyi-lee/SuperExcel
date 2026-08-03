@@ -14,6 +14,8 @@ import { strFromU8, unzipSync } from "fflate";
 import {
   newId,
   type Category,
+  type CostBehavior,
+  type DiscountTier,
   type Doc,
   type Material,
   type Product,
@@ -265,7 +267,175 @@ type Draft = {
   materials: Material[];
   products: Product[];
   rates: Rate[];
+  discountTiers: DiscountTier[];
 };
+
+// ──────────────────────────────────────────────────────────── 完整版專用匯入
+//
+// ⚠️ 通用的表頭辨識讀不動完整版：它的表頭是多層合併儲存格，
+//    而且三張物料表的欄位順序各不相同。
+//    所以先認出「這是完整版」，再照它的實際結構讀。
+//
+// 🚫 這裡仍然只認**表頭文字**不認欄位字母。
+//    寫死 AD 欄之後，使用者插入一欄就整份匯錯而且沒有人會發現。
+
+/** 完整版三張物料表。behavior 來自這張表的角色，不是使用者取的分類名稱。 */
+const FULL_MATERIAL_SHEETS: {
+  sheet: string;
+  categoryName: string;
+  behavior: CostBehavior;
+  nameHeader: string;
+  supplierHeader: string;
+}[] = [
+  {
+    sheet: "02 BOM-2 生產物料表",
+    categoryName: "生產物料",
+    behavior: "MATERIAL",
+    nameHeader: "生產物料標準名稱",
+    supplierHeader: "供應商",
+  },
+  {
+    sheet: "02 BOM-3 包裝物料表",
+    categoryName: "包裝物料",
+    behavior: "MATERIAL",
+    nameHeader: "包裝物料標準名稱",
+    supplierHeader: "供應商",
+  },
+  {
+    sheet: "02 BOM-4 模治具表",
+    categoryName: "模治具攤提",
+    // 模治具是一次性支出攤到每一單位，行為上是攤提不是投入物。
+    behavior: "AMORTIZED",
+    nameHeader: "模治具標準名稱",
+    supplierHeader: "模治具供應商",
+  },
+];
+
+const FULL_DISCOUNT_SHEET = "05 折扣變價";
+
+/** 這份檔案是不是完整版。認得出來才走專用路徑。 */
+export function isFullWorkbook(sheets: readonly SheetData[]): boolean {
+  const names = new Set(sheets.map((sheet) => sheet.name));
+  return FULL_MATERIAL_SHEETS.filter((spec) => names.has(spec.sheet)).length >= 2;
+}
+
+/** 在指定列範圍內找出「這個表頭文字在第幾欄」。找不到回 -1。 */
+function findColumn(grid: Grid, headerRow: number, header: string): number {
+  const row = grid[headerRow] ?? [];
+  return row.findIndex((cell) => cell.replace(/\s+/g, "") === header.replace(/\s+/g, ""));
+}
+
+/** 找出表頭在第幾列：從前 6 列裡挑出含有指定文字的那一列。 */
+function findHeaderRow(grid: Grid, header: string): number {
+  for (let row = 0; row < Math.min(grid.length, 6); row += 1) {
+    if (findColumn(grid, row, header) >= 0) return row;
+  }
+  return -1;
+}
+
+function importFullMaterials(sheets: readonly SheetData[], draft: Draft, warnings: string[]): number {
+  let count = 0;
+
+  for (const spec of FULL_MATERIAL_SHEETS) {
+    const sheet = sheets.find((item) => item.name === spec.sheet);
+    if (!sheet) continue;
+
+    const headerRow = findHeaderRow(sheet.grid, spec.nameHeader);
+    if (headerRow < 0) {
+      warnings.push(`「${spec.sheet}」找不到「${spec.nameHeader}」這一欄，整張未匯入。`);
+      continue;
+    }
+
+    const nameCol = findColumn(sheet.grid, headerRow, spec.nameHeader);
+    const costCol = findColumn(sheet.grid, headerRow, "單位成本");
+    const unitCol = sheet.grid[headerRow].reduce(
+      // 「計量單位」在同一張表出現兩次，單位成本旁邊那一個才是用量單位。
+      (best, cell, index) => (cell.replace(/\s+/g, "") === "計量單位" && index < costCol ? index : best),
+      -1,
+    );
+    const supplierCol = findColumn(sheet.grid, headerRow, spec.supplierHeader);
+    const currencyCol = findColumn(sheet.grid, headerRow, "貨幣單位");
+
+    if (costCol < 0) {
+      warnings.push(`「${spec.sheet}」找不到「單位成本」這一欄，整張未匯入。`);
+      continue;
+    }
+
+    let category = draft.categories.find((item) => item.name === spec.categoryName);
+    if (!category) {
+      category = {
+        id: newId(),
+        name: spec.categoryName,
+        behavior: spec.behavior,
+        sortOrder: (draft.categories.at(-1)?.sortOrder ?? 0) + 10,
+      };
+      draft.categories.push(category);
+    }
+
+    for (let row = headerRow + 1; row < sheet.grid.length; row += 1) {
+      const name = cellAt(sheet.grid, row, nameCol).trim();
+      if (name === "") continue;
+
+      const label = `${spec.sheet} 第 ${row + 1} 列「${name}」`;
+      const costText = cellAt(sheet.grid, row, costCol);
+      const unitCost = parseNumber(costText);
+      if (costText !== "" && unitCost === null) {
+        warnings.push(`${label} 的單位成本「${costText}」看不懂，已當作沒有單價匯入。`);
+      }
+
+      const supplierName = cellAt(sheet.grid, row, supplierCol).trim();
+      const fields = {
+        categoryId: category.id,
+        unit: cellAt(sheet.grid, row, unitCol).trim(),
+        unitCost,
+        currency: cellAt(sheet.grid, row, currencyCol).trim().toUpperCase() || "TWD",
+        // 完整版沒有耗損率欄位，留 null 由使用者自己補。
+        scrapRate: null,
+        note: supplierName ? `供應商：${supplierName}` : null,
+      };
+
+      const existing = draft.materials.find((item) => item.name === name);
+      if (existing) Object.assign(existing, fields);
+      else draft.materials.push({ id: newId(), name, supplierId: null, fxRate: null, ...fields });
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+function importFullDiscountTiers(sheets: readonly SheetData[], draft: Draft, warnings: string[]): number {
+  const sheet = sheets.find((item) => item.name === FULL_DISCOUNT_SHEET);
+  if (!sheet) return 0;
+
+  const headerRow = findHeaderRow(sheet.grid, "金額");
+  if (headerRow < 0) {
+    warnings.push(`「${FULL_DISCOUNT_SHEET}」找不到折扣表的表頭，未匯入。`);
+    return 0;
+  }
+
+  const amountCol = findColumn(sheet.grid, headerRow, "金額");
+  // ⚠️ 完整版這三欄的標題是「最低折扣／中間折扣／最低折扣」，第一與第三個同名。
+  //    所以照位置取金額欄右邊連續三欄，不靠標題分辨。
+  const [lightCol, midCol, deepCol] = [amountCol + 1, amountCol + 2, amountCol + 3];
+
+  let count = 0;
+  for (let row = headerRow + 1; row < sheet.grid.length; row += 1) {
+    const threshold = parseNumber(cellAt(sheet.grid, row, amountCol));
+    const light = parseNumber(cellAt(sheet.grid, row, lightCol));
+    const mid = parseNumber(cellAt(sheet.grid, row, midCol));
+    const deep = parseNumber(cellAt(sheet.grid, row, deepCol));
+    if (threshold === null || light === null || mid === null || deep === null) continue;
+    // 折數應該落在 0 到 1，超出範圍代表讀到別的區塊了，停下來而不是硬收。
+    if (light > 1 || mid > 1 || deep > 1) continue;
+
+    draft.discountTiers.push({ id: newId(), threshold, light, mid, deep });
+    count += 1;
+  }
+
+  if (count === 0) warnings.push(`「${FULL_DISCOUNT_SHEET}」的折扣表沒有讀到可用的列。`);
+  return count;
+}
 
 function importMaterials(
   sheet: SheetData,
@@ -504,12 +674,35 @@ export async function importSuperExcel(buffer: ArrayBuffer, base: Doc): Promise<
     materials: base.materials.map((item) => ({ ...item })),
     products: base.products.map((item) => ({ ...item, lines: item.lines.map((line) => ({ ...line })) })),
     rates: base.rates.map((item) => ({ ...item })),
+    discountTiers: base.discountTiers.map((item) => ({ ...item })),
   };
 
   const summary = { rates: 0, materials: 0, products: 0 };
   const bomSheets: { sheet: SheetData; header: Header }[] = [];
 
+  /*
+    先認完整版。它的表頭是多層合併儲存格，通用的表頭辨識讀不動，
+    而且三張物料表的欄位順序各不相同，只能照它的實際結構讀。
+    認不出來就整份走通用路徑。
+  */
+  const full = isFullWorkbook(sheets);
+  const handledByFullPath = new Set<string>();
+
+  if (full) {
+    summary.materials += importFullMaterials(sheets, draft, warnings);
+    const tiers = importFullDiscountTiers(sheets, draft, warnings);
+
+    for (const spec of FULL_MATERIAL_SHEETS) handledByFullPath.add(spec.sheet);
+    handledByFullPath.add(FULL_DISCOUNT_SHEET);
+
+    warnings.push(
+      `認出這是完整版試算表，已用專用路徑讀取物料與折扣表（折扣級距 ${tiers} 列）。` +
+        "產品、BOM 對應與各項優惠設定結構太自由，沒有匯入，請在對應分頁自行建立。",
+    );
+  }
+
   for (const sheet of sheets) {
+    if (handledByFullPath.has(sheet.name)) continue;
     const header = detectHeader(sheet.grid);
     if (!header) {
       warnings.push(`工作表「${sheet.name}」找不到可辨識的表頭，整張未匯入。`);

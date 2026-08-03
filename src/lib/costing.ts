@@ -281,6 +281,64 @@ export function floorPrice(input: FloorPriceInput): FloorPriceResult {
   };
 }
 
+// ──────────────────────────────────────────────────────────── 反推售價
+
+export type PriceForProfitInput = {
+  /** 想要的單位淨利。 */
+  targetProfit: number;
+  manufacturingCost: number | null;
+  /** 費率合計（變動銷售＋固定分攤＋廣告）。 */
+  percentRate: number;
+  averageLogistics: number;
+  averageOrderValue: number | null;
+};
+
+export type PriceSolveResult = { ok: true; price: number } | { ok: false; reason: "NO_COST" | "IMPOSSIBLE" };
+
+/**
+ * 反推「要賣多少錢才能達到這個單位淨利」。
+ *
+ * 淨利 = 售價 − 成本 − 售價×費率 − 物流(售價)
+ * 物流是分段的（按比例攤、但以平均運費封頂），所以要分兩段解再檢查落點：
+ *
+ *   低於平均客單價：物流 = 售價 × k，k = 平均運費 ÷ 平均客單價
+ *     售價 = (目標淨利 + 成本) ÷ (1 − 費率 − k)
+ *   高於平均客單價：物流固定為平均運費
+ *     售價 = (目標淨利 + 成本 + 平均運費) ÷ (1 − 費率)
+ *
+ * 🚫 分母 ≤ 0 或兩段都解不出落在自己區間的答案時回 IMPOSSIBLE。
+ *    費率已經吃掉全部售價時，賣多貴都達不到，回一個大數字會讓人以為只要漲價就好。
+ */
+export function priceForNetProfit(input: PriceForProfitInput): PriceSolveResult {
+  const { targetProfit, manufacturingCost, percentRate, averageLogistics, averageOrderValue } = input;
+  if (manufacturingCost === null) return { ok: false, reason: "NO_COST" };
+
+  const solveCapped = (): number | null => {
+    const denominator = 1 - percentRate;
+    if (denominator <= 0) return null;
+    return (targetProfit + manufacturingCost + averageLogistics) / denominator;
+  };
+
+  if (averageOrderValue === null || !(averageOrderValue > 0)) {
+    const price = solveCapped();
+    return price === null || price <= 0 ? { ok: false, reason: "IMPOSSIBLE" } : { ok: true, price: roundTo(price, 2) };
+  }
+
+  const k = averageLogistics / averageOrderValue;
+
+  const proportionalDenominator = 1 - percentRate - k;
+  if (proportionalDenominator > 0) {
+    const price = (targetProfit + manufacturingCost) / proportionalDenominator;
+    // 只有落在「還沒攤滿」的區間才算數，否則要用封頂那一段重解。
+    if (price > 0 && price <= averageOrderValue) return { ok: true, price: roundTo(price, 2) };
+  }
+
+  const capped = solveCapped();
+  if (capped !== null && capped > averageOrderValue) return { ok: true, price: roundTo(capped, 2) };
+
+  return { ok: false, reason: "IMPOSSIBLE" };
+}
+
 // ──────────────────────────────────────────────────────────── 促銷試算
 
 export type PromotionRuleInput = {
@@ -320,11 +378,49 @@ export function computeDiscount(rules: readonly PromotionRuleInput[], basket: Ba
   return roundTo(Math.min(Math.max(discount, 0), basket.subtotal), 2);
 }
 
+export type GiftRuleInput = {
+  trigger: "AMOUNT" | "QUANTITY";
+  threshold: number;
+  /** 每次達標送幾份。 */
+  quantity: number;
+  /** 可累贈：買到兩倍門檻就送兩次。不可累贈時達標幾次都只送一份。 */
+  stackable: boolean;
+};
+
+/**
+ * 這一籃會送出幾份贈品。
+ *
+ * ⚠️ 可累贈與不可累贈差很多：滿 1000 送 1 的活動，客人買 5000 時
+ *    可累贈要送 5 份，不可累贈只送 1 份。設錯的那一邊會直接吃掉獲利。
+ */
+export function computeGiftUnits(rules: readonly GiftRuleInput[], basket: BasketInput): number {
+  let units = 0;
+
+  for (const rule of rules) {
+    if (!(rule.threshold > 0)) continue;
+    const basis = rule.trigger === "QUANTITY" ? basket.quantity : basket.subtotal;
+    if (basis < rule.threshold) continue;
+
+    units += rule.stackable ? Math.floor(basis / rule.threshold) * rule.quantity : rule.quantity;
+  }
+
+  return units;
+}
+
 export type PromotionInput = {
   basket: BasketInput;
   rules: readonly PromotionRuleInput[];
   /** 單位變動製造成本。null 代表算不出來。 */
   costPerUnit: number | null;
+  /**
+   * 贈品的製造成本合計。
+   * ⚠️ 贈品沒有營收，所以只有成本這一邊。null 代表贈品成本算不出來。
+   */
+  giftCost: number | null;
+  /** 加價購客人多付的錢。 */
+  addOnRevenue: number;
+  /** 加價購的製造成本合計。null 代表算不出來。 */
+  addOnCost: number | null;
   /** 每筆平均運費，同時是攤提上限。 */
   averageLogistics: number;
   averageOrderValue: number | null;
@@ -336,8 +432,10 @@ export type PromotionInput = {
 export type PromotionResult = {
   /** 折抵金額。 */
   discount: number;
-  /** 折後實收。 */
+  /** 折後實收（主商品）。 */
   netRevenue: number;
+  /** 實際收到的錢：折後實收＋加價購。 */
+  collected: number;
   /** 折後淨利。成本未知時為 null。 */
   netProfit: number | null;
   netRate: number | null;
@@ -352,10 +450,20 @@ export type PromotionResult = {
   savedVariableCost: number;
 };
 
-/** 只跟營收有關的費用合計（變動銷售＋固定分攤＋廣告＋物流）。 */
-function revenueLinkedCost(revenue: number, input: PromotionInput): number {
-  const percent = input.variableSellingRate + input.overheadRate + input.adSpendRate;
-  return revenue * percent + logisticsCost(revenue, input.averageLogistics, input.averageOrderValue);
+/**
+ * 只跟營收有關的費用（變動銷售＋固定分攤＋廣告＋物流）。
+ *
+ * ⚠️ 加價購的營收要付金流與抽成，也要分攤固定費用，但**不分攤廣告**：
+ *    廣告是為了把人帶進來買主商品，加價購是進來之後才發生的，
+ *    把廣告攤到它頭上會讓加價購看起來比實際差。
+ */
+function revenueLinkedCost(mainRevenue: number, addOnRevenue: number, input: PromotionInput): number {
+  const total = mainRevenue + addOnRevenue;
+  return (
+    total * (input.variableSellingRate + input.overheadRate) +
+    mainRevenue * input.adSpendRate +
+    logisticsCost(total, input.averageLogistics, input.averageOrderValue)
+  );
 }
 
 /**
@@ -370,20 +478,24 @@ function revenueLinkedCost(revenue: number, input: PromotionInput): number {
  *    「不知道賺不賺」與「確定有賺」是完全不同的事。
  */
 export function simulatePromotion(input: PromotionInput): PromotionResult {
-  const { basket, rules, costPerUnit } = input;
+  const { basket, rules, costPerUnit, giftCost, addOnRevenue, addOnCost } = input;
 
   const discount = computeDiscount(rules, basket);
   const netRevenue = roundTo(basket.subtotal - discount, 2);
+  const collected = roundTo(netRevenue + addOnRevenue, 2);
 
   const savedVariableCost = roundTo(
-    revenueLinkedCost(basket.subtotal, input) - revenueLinkedCost(netRevenue, input),
+    revenueLinkedCost(basket.subtotal, addOnRevenue, input) - revenueLinkedCost(netRevenue, addOnRevenue, input),
     2,
   );
 
-  if (costPerUnit === null) {
+  // 🚫 任何一段成本未知，整體淨利就是未知。贈品成本沒查到卻照樣算，
+  //    等於把贈品當成免費，那正好是活動最容易爆的地方。
+  if (costPerUnit === null || giftCost === null || addOnCost === null) {
     return {
       discount,
       netRevenue,
+      collected,
       netProfit: null,
       netRate: null,
       profitable: null,
@@ -392,18 +504,95 @@ export function simulatePromotion(input: PromotionInput): PromotionResult {
     };
   }
 
-  const manufacturing = costPerUnit * basket.quantity;
-  const netProfit = netRevenue - manufacturing - revenueLinkedCost(netRevenue, input);
+  const manufacturing = costPerUnit * basket.quantity + giftCost + addOnCost;
+  const netProfit = collected - manufacturing - revenueLinkedCost(netRevenue, addOnRevenue, input);
 
   return {
     discount,
     netRevenue,
+    collected,
     netProfit: roundTo(netProfit, 2),
     // 實收為 0 時淨利率無意義（全額折抵），回 null 而非除以零。
-    netRate: netRevenue > 0 ? roundTo(netProfit / netRevenue, 6) : null,
+    netRate: collected > 0 ? roundTo(netProfit / collected, 6) : null,
     profitable: netProfit > 0,
-    netProfitAtFullPrice: roundTo(basket.subtotal - manufacturing - revenueLinkedCost(basket.subtotal, input), 2),
+    netProfitAtFullPrice: roundTo(
+      basket.subtotal + addOnRevenue - manufacturing - revenueLinkedCost(basket.subtotal, addOnRevenue, input),
+      2,
+    ),
     savedVariableCost,
+  };
+}
+
+// ──────────────────────────────────────────────────────────── 團購
+
+export type GroupBuyInput = {
+  /** 團員的原價小計。 */
+  subtotal: number;
+  quantity: number;
+  costPerUnit: number | null;
+  /** 折數 0 至 1。0.9 代表九折。 */
+  discount: number;
+  /** 團主毛利比例，從團員結帳金額裡抽走。 */
+  partnerShare: number;
+  /**
+   * 這一單的運費由你吸收嗎。
+   * ⚠️ 未達免運門檻時運費由團員自付，對你是收支相抵，所以不算你的成本；
+   *    達到免運門檻才變成你的成本。這一格設錯，整場團購的損益會差很多。
+   */
+  absorbsShipping: boolean;
+  averageLogistics: number;
+  averageOrderValue: number | null;
+  variableSellingRate: number;
+  overheadRate: number;
+  adSpendRate: number;
+};
+
+export type GroupBuyResult = {
+  /** 團員實際結帳金額。 */
+  checkout: number;
+  /** 要付給團主的錢。 */
+  partnerPayout: number;
+  /** 扣掉團主毛利之後，進到你口袋的營收。 */
+  yourRevenue: number;
+  logistics: number;
+  netProfit: number | null;
+  netRate: number | null;
+  profitable: boolean | null;
+};
+
+/**
+ * 團購試算。
+ *
+ * ⚠️ 團主毛利是**從團員結帳金額裡抽走**的，不是額外的行銷費用。
+ *    但通路抽成、金流、稅、固定分攤仍然按結帳金額算，
+ *    因為那些是照成交金額收的，不會因為你分了一半給團主就少收。
+ *
+ * 🚫 成本未知時淨利一律 null。團購常常一次出幾百單，
+ *    「不知道賺不賺」卻當成有賺，賠起來是等比例放大的。
+ */
+export function simulateGroupBuy(input: GroupBuyInput): GroupBuyResult {
+  const checkout = roundTo(input.subtotal * input.discount, 2);
+  const partnerPayout = roundTo(checkout * input.partnerShare, 2);
+  const yourRevenue = roundTo(checkout - partnerPayout, 2);
+  const logistics = input.absorbsShipping
+    ? logisticsCost(checkout, input.averageLogistics, input.averageOrderValue)
+    : 0;
+
+  if (input.costPerUnit === null) {
+    return { checkout, partnerPayout, yourRevenue, logistics, netProfit: null, netRate: null, profitable: null };
+  }
+
+  const percent = input.variableSellingRate + input.overheadRate + input.adSpendRate;
+  const netProfit = checkout - partnerPayout - input.costPerUnit * input.quantity - checkout * percent - logistics;
+
+  return {
+    checkout,
+    partnerPayout,
+    yourRevenue,
+    logistics,
+    netProfit: roundTo(netProfit, 2),
+    netRate: checkout > 0 ? roundTo(netProfit / checkout, 6) : null,
+    profitable: netProfit > 0,
   };
 }
 

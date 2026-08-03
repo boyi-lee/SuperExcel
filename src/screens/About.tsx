@@ -200,6 +200,73 @@ export function AboutScreen({ onStart }: { onStart: () => void }) {
         </div>
       </Card>
 
+      {/*
+        🚫 這一段的內容必須跟 LICENSE 檔一致。
+           授權說明寫錯比沒寫更糟：使用者會照著做，然後違約的是他。
+           這個專案是 AGPL-3.0，跟 FSL、MIT 的規則都不一樣，不要照抄別的專案的說法。
+      */}
+      <Card title="授權">
+        <div className="max-w-3xl">
+          <h3 className="text-xl font-bold text-ink sm:text-2xl">開源，而且要求改良的版本也開源</h3>
+          <p className="mt-3 text-sm leading-relaxed text-ink-2">
+            授權是 <span className="font-semibold text-ink">AGPL-3.0</span>。
+            你可以自由使用、修改、散布，也可以拿去賺錢。唯一的核心要求是：
+            <span className="font-semibold text-ink">
+              如果你改了它，並且把改過的版本架成網路服務給別人用，你也必須以同樣的授權公開你的原始碼。
+            </span>
+          </p>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border-l-4 border-ok border-y border-r border-y-line border-r-line bg-panel-2 p-4">
+            <h4 className="text-sm font-semibold text-ok">可以</h4>
+            <ul className="mt-3 space-y-2 text-sm text-ink-2">
+              {[
+                "自己用、公司內部用",
+                "修改它、發布你的修改版",
+                "拿去上收費課程與企業內訓",
+                "用在你提供給客戶的專業服務裡",
+                "架成網路服務對外收費",
+              ].map((line) => (
+                <li key={line} className="flex gap-2">
+                  <span aria-hidden className="text-ok">
+                    ✓
+                  </span>
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-lg border-l-4 border-bad border-y border-r border-y-line border-r-line bg-panel-2 p-4">
+            <h4 className="text-sm font-semibold text-bad">不可以</h4>
+            <ul className="mt-3 space-y-2 text-sm text-ink-2">
+              {[
+                "改了之後架成服務，卻不公開你改過的原始碼",
+                "改成專有授權或閉源",
+                "移除原始碼裡的著作權與授權聲明",
+                "散布時不附上授權條款全文",
+              ].map((line) => (
+                <li key={line} className="flex gap-2">
+                  <span aria-hidden className="text-bad">
+                    ✕
+                  </span>
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-lg border border-line bg-panel-2 p-4 text-sm leading-relaxed text-ink-2">
+          <span className="font-semibold text-ink">判斷原則：</span>
+          拿去賺錢可以，把改良的版本變回黑箱不行。
+          選 AGPL 就是為了這一條：這個工具解決的是資訊不對稱，
+          它的後代不該再變成一個別人看不到算式的黑盒子。
+          條款全文在原始碼的 LICENSE 檔裡，那份才是有效力的版本，這裡只是白話摘要。
+        </div>
+      </Card>
+
       <Card title="看到數字變醜的時候">
         <div className="max-w-3xl space-y-3 text-sm leading-relaxed text-ink-2">
           <p>
