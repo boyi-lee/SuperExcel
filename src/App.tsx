@@ -6,10 +6,12 @@ import { ProductsScreen } from "./screens/Products";
 import { MarginsScreen } from "./screens/Margins";
 import { PromotionsScreen } from "./screens/Promotions";
 import { ModelsScreen } from "./screens/Models";
+import { AboutScreen } from "./screens/About";
 import { downloadDoc, emptyDoc, isStorageAvailable, loadDoc, parseDoc, saveDoc, type Doc } from "./lib/doc";
 import { importSuperExcel } from "./lib/import-xlsx";
 
 const TABS = [
+  { key: "about", label: "這是什麼" },
   { key: "rates", label: "費率設定" },
   { key: "materials", label: "物料與供應商" },
   { key: "products", label: "產品與用料" },
@@ -20,9 +22,29 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
+/** 記住使用者看過來由頁了。跟試算資料無關，所以不放進 Doc（也就不會進匯出檔）。 */
+const SEEN_KEY = "superexcel.seenAbout.v1";
+
+function markAboutSeen(): void {
+  try {
+    localStorage.setItem(SEEN_KEY, "1");
+  } catch {
+    // 無痕模式寫不進去。頂多每次都先看到說明，不影響功能。
+  }
+}
+
+function hasSeenAbout(): boolean {
+  try {
+    return localStorage.getItem(SEEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function App() {
   const [doc, setDoc] = useState<Doc>(() => loadDoc() ?? emptyDoc());
-  const [tab, setTab] = useState<TabKey>("rates");
+  // 第一次進來先看來由，不要一開場就丟一堆欄位。看過之後記住，下次直接進費率設定。
+  const [tab, setTab] = useState<TabKey>(() => (hasSeenAbout() ? "rates" : "about"));
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** 上次匯出之後有沒有改過東西。用來決定要不要提醒下載。 */
@@ -182,23 +204,37 @@ export function App() {
         ) : null}
       </div>
 
-      <nav className="mt-6 flex flex-wrap gap-2 border-b border-stone-200 pb-px">
-        {TABS.map((item) => (
-          <button
-            key={item.key}
-            onClick={() => setTab(item.key)}
-            className={`rounded-t-lg px-4 py-2 text-sm font-semibold ${
-              tab === item.key
-                ? "border border-b-white border-stone-200 bg-white text-brand-800"
-                : "text-stone-600 hover:text-stone-900"
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
+      {/*
+        ⚠️ 分頁列橫向捲動而不換行。分頁只會越加越多，換行的話在手機上會吃掉半個螢幕，
+           而且每次多一個分頁版面就再跳一次。
+      */}
+      <nav className="mt-6 -mx-4 overflow-x-auto border-b border-stone-200 px-4">
+        <div className="flex min-w-max gap-1 pb-px">
+          {TABS.map((item) => (
+            <button
+              key={item.key}
+              onClick={() => setTab(item.key)}
+              className={`shrink-0 rounded-t-lg px-4 py-2 text-sm font-semibold ${
+                tab === item.key
+                  ? "border border-b-white border-stone-200 bg-white text-brand-800"
+                  : "text-stone-600 hover:text-stone-900"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </nav>
 
       <main className="mt-6 space-y-6">
+        {tab === "about" && (
+          <AboutScreen
+            onStart={() => {
+              markAboutSeen();
+              setTab("rates");
+            }}
+          />
+        )}
         {tab === "rates" && <RatesScreen doc={doc} onChange={update} />}
         {tab === "materials" && <MaterialsScreen doc={doc} onChange={update} />}
         {tab === "products" && <ProductsScreen doc={doc} onChange={update} />}

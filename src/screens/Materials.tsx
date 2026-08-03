@@ -4,7 +4,7 @@
 //    手作皂叫「配方油脂」、電商叫「進貨成本」、代工叫「原料」，
 //    對計算層來說都只是 MATERIAL。這裡不得出現任何依名稱分支的邏輯。
 
-import { Button, Card, Field, Note, inputClass, money } from "../components/ui";
+import { Accordion, Button, Field, Note, inputClass, money } from "../components/ui";
 import { unitCostBase } from "../lib/derive";
 import { formatUnitCost } from "../lib/costing";
 import {
@@ -138,10 +138,10 @@ export function MaterialsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: D
   };
 
   return (
-    <>
-      <Card
+    <div className="space-y-4">
+      <Accordion
         title="分類"
-        action={<span className="text-xs text-stone-600">名稱自己取，計算方式由「計價行為」決定。</span>}
+        summary={`${categories.length} 個分類。名稱自己取，計算方式由「計價行為」決定。`}
       >
         <div className="space-y-2">
           {categories.map((category) => (
@@ -188,9 +188,9 @@ export function MaterialsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: D
             新增分類
           </Button>
         </div>
-      </Card>
+      </Accordion>
 
-      <Card title="供應商" action={<span className="text-xs text-stone-600">選填。只是方便日後回頭問價。</span>}>
+      <Accordion title="供應商" summary={`${doc.suppliers.length} 家。選填，只是方便日後回頭問價。`}>
         <div className="space-y-2">
           {doc.suppliers.map((supplier) => (
             <div key={supplier.id} className="grid grid-cols-1 items-end gap-3 rounded-lg border border-stone-200 p-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -232,11 +232,12 @@ export function MaterialsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: D
             新增供應商
           </Button>
         </div>
-      </Card>
+      </Accordion>
 
-      <Card
+      <Accordion
+        defaultOpen
         title="物料"
-        action={<span className="text-xs text-stone-600">共 {doc.materials.length} 項</span>}
+        summary={`共 ${doc.materials.length} 項${missing.length > 0 ? `，其中 ${missing.length} 項還沒有單價` : ""}`}
       >
         {missing.length > 0 ? (
           <div className="mb-4">
@@ -404,7 +405,7 @@ export function MaterialsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: D
             已有單價的有 {money(doc.materials.length - missing.length)} 項。
           </span>
         </div>
-      </Card>
-    </>
+      </Accordion>
+    </div>
   );
 }

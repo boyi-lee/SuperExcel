@@ -1,4 +1,4 @@
-import { Button, Card, Field, Note, inputClass, pct } from "../components/ui";
+import { Accordion, Button, Card, Field, Note, inputClass, pct } from "../components/ui";
 import { deriveRates, resolveAdSpend } from "../lib/derive";
 import { RATE_META, newId, type Doc, type Rate, type RateKind } from "../lib/doc";
 
@@ -27,7 +27,7 @@ export function RatesScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Doc) 
   const removeRate = (id: string) => onChange({ ...doc, rates: doc.rates.filter((rate) => rate.id !== id) });
 
   return (
-    <>
+    <div className="space-y-4">
       <Card title="基本設定">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="本位幣別">
@@ -156,10 +156,22 @@ export function RatesScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Doc) 
         const meta = RATE_META[kind];
         const rows = doc.rates.filter((rate) => rate.kind === kind);
         return (
-          <Card
+          <Accordion
             key={kind}
             title={meta.label}
-            action={<span className="text-xs text-stone-600">{meta.hint}</span>}
+            // 收合時也要看得到「設了幾筆、目前是多少」，否則只能一個一個展開找。
+            summary={
+              <>
+                {rows.length === 0
+                  ? "尚未設定"
+                  : `${rows.length} 筆　${
+                      meta.unit === "amount"
+                        ? `加權平均 ${rates.logistics.toFixed(2)} 元`
+                        : `合計 ${pct(rows.reduce((sum, rate) => sum + rate.value, 0))}`
+                    }`}
+                <span className="ml-2">{meta.hint}</span>
+              </>
+            }
           >
             <div className="space-y-2">
               {rows.map((rate) => (
@@ -238,9 +250,9 @@ export function RatesScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Doc) 
                 新增{meta.label}
               </Button>
             </div>
-          </Card>
+          </Accordion>
         );
       })}
-    </>
+    </div>
   );
 }
