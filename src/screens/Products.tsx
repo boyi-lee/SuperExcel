@@ -29,7 +29,7 @@ export function ProductsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Do
       products: [
         ...doc.products,
         // 產出數量預設 1 表示「一次做一個」，這是最不會算錯的起點。
-        { id: newId(), name: "", sku: null, price: null, outputQuantity: 1, lines: [], variants: [] },
+        { id: newId(), name: "", sku: null, details: null, price: null, outputQuantity: 1, lines: [], variants: [] },
       ],
     });
 
@@ -366,7 +366,7 @@ export function ProductsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Do
                 variant="secondary"
                 onClick={() =>
                   setProduct(product.id, {
-                    variants: [...product.variants, { id: newId(), name: "", sku: null, price: null, lines: [] }],
+                    variants: [...product.variants, { id: newId(), name: "", sku: null, details: null, price: null, lines: [] }],
                   })
                 }
               >

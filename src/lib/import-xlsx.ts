@@ -538,7 +538,7 @@ function importProducts(sheet: SheetData, header: Header, draft: Draft, warnings
 
     const existing = draft.products.find((item) => item.name === name);
     if (existing) Object.assign(existing, fields);
-    else draft.products.push({ id: newId(), name, lines: [], variants: [], ...fields });
+    else draft.products.push({ id: newId(), name, details: null, lines: [], variants: [], ...fields });
     count += 1;
   }
 

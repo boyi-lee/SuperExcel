@@ -55,6 +55,11 @@ export type Settings = {
   paysReturnShipping: boolean;
   /** 把退貨率納入邊際貢獻與定價的計算。預設不納入，畫面會標示。 */
   includeReturns: boolean;
+  /**
+   * 安控線：期望的最低淨利率。低於這條線的方案標為「不可行」。
+   * ⚠️ 不可行不等於虧錢。等到虧才擋已經太晚了。
+   */
+  minNetRate: number;
 };
 
 export type Category = { id: string; name: string; behavior: CostBehavior; sortOrder: number };
@@ -90,6 +95,8 @@ export type Variant = {
   id: string;
   name: string;
   sku: string | null;
+  /** 這個規格獨有的詳情。留空就沿用母規格。 */
+  details: string | null;
   /** null 代表沿用母規格售價。 */
   price: number | null;
   /** 差異用料：同一項物料覆蓋用量，用量 0 代表這個規格不用它。 */
@@ -100,6 +107,8 @@ export type Product = {
   id: string;
   name: string;
   sku: string | null;
+  /** 商品詳情。給活動頁用的文案，不參與任何計算。 */
+  details: string | null;
   price: number | null;
   /** 一次產出的數量。一鍋做 500 支就填 500，用量按整鍋填。 */
   outputQuantity: number;
@@ -169,6 +178,33 @@ export type Promotion = {
   rules: PromotionRule[];
   gifts: GiftRule[];
   addOns: AddOnRule[];
+};
+
+/**
+ * 商品組合。
+ *
+ * ⚠️ 活動賣的通常不是單品，是「A 一件 ＋ B 兩件」這種組合。
+ *    促銷、安控、活動頁文案全部都以組合為單位，所以它是資料模型的一層，
+ *    不是某個畫面上的暫存狀態。
+ */
+export type BundleLine = {
+  id: string;
+  /** 可定價品項的 key（單品或子規格）。 */
+  itemKey: string;
+  quantity: number;
+};
+
+export type Bundle = {
+  id: string;
+  name: string;
+  /**
+   * 組合售價。null 代表用內容物的原價加總。
+   * ⚠️ 填了就是「這一組賣多少錢」，跟內容物原價無關，組合價通常比加總便宜。
+   */
+  price: number | null;
+  lines: BundleLine[];
+  /** 活動頁補充說明。跟計算無關。 */
+  note: string | null;
 };
 
 /**
@@ -251,6 +287,7 @@ export type Doc = {
   discountTiers: DiscountTier[];
   groupBuys: GroupBuy[];
   monthlyRecords: MonthlyRecord[];
+  bundles: Bundle[];
 };
 
 export function newId(): string {
@@ -286,6 +323,8 @@ export function emptyDoc(): Doc {
       paysReturnShipping: true,
       // 🚫 預設不納入。看到「有納入退貨」的數字卻其實沒納入，比沒有這個功能更糟。
       includeReturns: false,
+      // 15% 只是一個起點，使用者一定要自己調成他真正的底線。
+      minNetRate: 0.15,
     },
     categories: [
       cat("主要物料", "MATERIAL", 10),
@@ -302,6 +341,7 @@ export function emptyDoc(): Doc {
     discountTiers: [],
     groupBuys: [],
     monthlyRecords: [],
+    bundles: [],
   };
 }
 
@@ -327,10 +367,16 @@ export function normalizeDoc(doc: Doc): Doc {
     discountTiers: doc.discountTiers ?? [],
     groupBuys: (doc.groupBuys ?? []).map((groupBuy) => ({ ...groupBuy, tiers: groupBuy.tiers ?? [] })),
     monthlyRecords: doc.monthlyRecords ?? [],
+    bundles: (doc.bundles ?? []).map((bundle) => ({ ...bundle, lines: bundle.lines ?? [] })),
     products: (doc.products ?? []).map((product) => ({
       ...product,
+      details: product.details ?? null,
       lines: product.lines ?? [],
-      variants: (product.variants ?? []).map((variant) => ({ ...variant, lines: variant.lines ?? [] })),
+      variants: (product.variants ?? []).map((variant) => ({
+        ...variant,
+        details: variant.details ?? null,
+        lines: variant.lines ?? [],
+      })),
     })),
   };
 }

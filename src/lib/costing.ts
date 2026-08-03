@@ -420,6 +420,71 @@ export function priceForNetProfit(input: PriceForProfitInput): PriceSolveResult 
   return { ok: false, reason: "IMPOSSIBLE" };
 }
 
+export type PriceForRateInput = {
+  /** 目標淨利率 0 至 1。 */
+  targetRate: number;
+  manufacturingCost: number | null;
+  percentRate: number;
+  averageLogistics: number;
+  averageOrderValue: number | null;
+};
+
+/**
+ * 反推「要賣多少錢才能達到這個淨利**率**」。
+ *
+ *   售價×(1−費率) − 成本 − 物流(售價) = 售價×目標率
+ *
+ * 跟 priceForNetProfit 一樣要分兩段解，因為物流是分段的：
+ *   低於平均客單價：售價 = 成本 ÷ (1 − 費率 − k − 目標率)
+ *   高於平均客單價：售價 = (成本 + 平均運費) ÷ (1 − 費率 − 目標率)
+ *
+ * 🚫 分母 ≤ 0 就是 IMPOSSIBLE。費率加上目標率已經吃掉全部售價時，
+ *    賣多貴都達不到，回一個大數字會讓人以為只要漲價就好。
+ */
+export function priceForNetRate(input: PriceForRateInput): PriceSolveResult {
+  const { targetRate, manufacturingCost, percentRate, averageLogistics, averageOrderValue } = input;
+  if (manufacturingCost === null) return { ok: false, reason: "NO_COST" };
+
+  const solveCapped = (): number | null => {
+    const denominator = 1 - percentRate - targetRate;
+    if (denominator <= 0) return null;
+    return (manufacturingCost + averageLogistics) / denominator;
+  };
+
+  if (averageOrderValue === null || !(averageOrderValue > 0)) {
+    const price = solveCapped();
+    return price === null || price <= 0 ? { ok: false, reason: "IMPOSSIBLE" } : { ok: true, price: roundTo(price, 2) };
+  }
+
+  const k = averageLogistics / averageOrderValue;
+  const proportionalDenominator = 1 - percentRate - k - targetRate;
+  if (proportionalDenominator > 0) {
+    const price = manufacturingCost / proportionalDenominator;
+    if (price > 0 && price <= averageOrderValue) return { ok: true, price: roundTo(price, 2) };
+  }
+
+  const capped = solveCapped();
+  if (capped !== null && capped > averageOrderValue) return { ok: true, price: roundTo(capped, 2) };
+
+  return { ok: false, reason: "IMPOSSIBLE" };
+}
+
+export type PriceSuggestion = { label: string; targetRate: number; result: PriceSolveResult };
+
+/**
+ * 依成本給出高中低三個建議優惠價。
+ *
+ * ⚠️ 三檔都是**從你自己的安控線往上加**推出來的，不是憑空的行情價。
+ *    低的那一檔就是安控線本身：再低就跌破你設定的底線。
+ */
+export function suggestPrices(input: Omit<PriceForRateInput, "targetRate">, minNetRate: number): PriceSuggestion[] {
+  return [
+    { label: "低（貼著安控線）", targetRate: minNetRate },
+    { label: "中", targetRate: minNetRate + 0.05 },
+    { label: "高", targetRate: minNetRate + 0.1 },
+  ].map((tier) => ({ ...tier, result: priceForNetRate({ ...input, targetRate: tier.targetRate }) }));
+}
+
 // ──────────────────────────────────────────────────────────── 促銷試算
 
 export type PromotionRuleInput = {

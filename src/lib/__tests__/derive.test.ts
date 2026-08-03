@@ -34,6 +34,7 @@ const product: Product = {
   id: "p1",
   name: "手工皂",
   sku: "S1",
+  details: null,
   price: 380,
   outputQuantity: 1,
   lines: [
@@ -47,24 +48,24 @@ describe("子規格疊在母規格上", () => {
   const doc = docWith([product], [material("m1", "基底", 10), material("m2", "瓶子", 30), material("m3", "限定貼紙", 5)]);
 
   it("沒有差異時成本與母規格相同", () => {
-    const variant = { id: "v1", name: "黃色", sku: null, price: null, lines: [] };
+    const variant = { id: "v1", name: "黃色", sku: null, details: null, price: null, lines: [] };
     expect(computeProductCost(doc, product, variant).unitCost).toBe(computeProductCost(doc, product).unitCost);
   });
 
   it("同一項物料由子規格覆蓋用量", () => {
-    const variant = { id: "v1", name: "大瓶", sku: null, price: null, lines: [{ id: "x", materialId: "m2", quantity: 3 }] };
+    const variant = { id: "v1", name: "大瓶", sku: null, details: null, price: null, lines: [{ id: "x", materialId: "m2", quantity: 3 }] };
     // 2×10 + 3×30 = 110
     expect(computeProductCost(doc, product, variant).unitCost).toBe(110);
   });
 
   it("子規格可以加上母規格沒有的物料", () => {
-    const variant = { id: "v1", name: "限定", sku: null, price: null, lines: [{ id: "x", materialId: "m3", quantity: 1 }] };
+    const variant = { id: "v1", name: "限定", sku: null, details: null, price: null, lines: [{ id: "x", materialId: "m3", quantity: 1 }] };
     // 2×10 + 1×30 + 1×5 = 55
     expect(computeProductCost(doc, product, variant).unitCost).toBe(55);
   });
 
   it("🚫 用量 0 代表這個規格不用這一項，不是算 0 元", () => {
-    const variant = { id: "v1", name: "無瓶", sku: null, price: null, lines: [{ id: "x", materialId: "m2", quantity: 0 }] };
+    const variant = { id: "v1", name: "無瓶", sku: null, details: null, price: null, lines: [{ id: "x", materialId: "m2", quantity: 0 }] };
     expect(effectiveLines(product, variant)).toHaveLength(1);
     expect(computeProductCost(doc, product, variant).unitCost).toBe(20);
   });
@@ -75,12 +76,12 @@ describe("子規格疊在母規格上", () => {
       [product],
       [material("m1", "基底", 10), material("m2", "瓶子", 30), material("m3", "沒問到價的香精", null)],
     );
-    const variant = { id: "v1", name: "無香", sku: null, price: null, lines: [{ id: "x", materialId: "m3", quantity: 0 }] };
+    const variant = { id: "v1", name: "無香", sku: null, details: null, price: null, lines: [{ id: "x", materialId: "m3", quantity: 0 }] };
     expect(computeProductCost(withUnpriced, product, variant).unitCost).toBe(50);
   });
 
   it("母規格改配方時，子規格跟著改（因為只存差異）", () => {
-    const variant = { id: "v1", name: "黃色", sku: null, price: null, lines: [] };
+    const variant = { id: "v1", name: "黃色", sku: null, details: null, price: null, lines: [] };
     const cheaper = { ...product, lines: [{ id: "l1", materialId: "m1", quantity: 2 }] };
     expect(computeProductCost(doc, cheaper, variant).unitCost).toBe(20);
   });
@@ -99,8 +100,8 @@ describe("可定價品項清單", () => {
     const withVariants: Product = {
       ...product,
       variants: [
-        { id: "v1", name: "黃色", sku: null, price: null, lines: [] },
-        { id: "v2", name: "限定色", sku: "S1-X", price: 480, lines: [] },
+        { id: "v1", name: "黃色", sku: null, details: null, price: null, lines: [] },
+        { id: "v2", name: "限定色", sku: "S1-X", details: null, price: 480, lines: [] },
       ],
     };
     const items = listPricedItems(docWith([withVariants], []));

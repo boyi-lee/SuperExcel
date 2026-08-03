@@ -8,6 +8,7 @@ import { PromotionsScreen } from "./screens/Promotions";
 import { ModelsScreen } from "./screens/Models";
 import { AboutScreen } from "./screens/About";
 import { SettingsScreen } from "./screens/Settings";
+import { BundlesScreen } from "./screens/Bundles";
 import { DiscountsScreen } from "./screens/Discounts";
 import { GroupBuyScreen } from "./screens/GroupBuy";
 import { AnalysisScreen } from "./screens/Analysis";
@@ -20,6 +21,7 @@ const TABS = [
   { key: "materials", label: "物料與供應商" },
   { key: "products", label: "產品與用料" },
   { key: "margins", label: "邊際貢獻與定價" },
+  { key: "bundles", label: "商品組合" },
   { key: "discounts", label: "折扣變價" },
   { key: "promotions", label: "促銷試算" },
   { key: "groupbuy", label: "團購優惠" },
@@ -242,6 +244,7 @@ export function App() {
         {tab === "materials" && <MaterialsScreen doc={doc} onChange={update} />}
         {tab === "products" && <ProductsScreen doc={doc} onChange={update} />}
         {tab === "margins" && <MarginsScreen doc={doc} />}
+        {tab === "bundles" && <BundlesScreen doc={doc} onChange={update} />}
         {tab === "discounts" && <DiscountsScreen doc={doc} onChange={update} />}
         {tab === "promotions" && <PromotionsScreen doc={doc} onChange={update} />}
         {tab === "groupbuy" && <GroupBuyScreen doc={doc} onChange={update} />}

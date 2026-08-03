@@ -14,7 +14,7 @@ import {
   type BomLineInput,
   type MarginResult,
 } from "./costing";
-import type { BomLine, Doc, Material, Product, Rate, Variant } from "./doc";
+import type { BomLine, Bundle, BundleLine, Doc, Material, Product, Rate, Variant } from "./doc";
 
 /** 物料單價換算成本位幣。幣別相同時匯率視為 1，不強迫使用者填。 */
 export function unitCostBase(material: Material, baseCurrency: string): number | null {
@@ -272,4 +272,75 @@ export function computeProductMargins(doc: Doc, channelId: string | null, target
       }),
     };
   });
+}
+
+
+// ──────────────────────────────────────────────────────────── 商品組合
+
+export type BundleContent = {
+  line: BundleLine;
+  item: PricedItem | null;
+  /** 這一列的原價小計。品項不存在或沒定價時為 null。 */
+  subtotal: number | null;
+  /** 這一列的成本合計。算不出來時為 null。 */
+  cost: number | null;
+};
+
+export type BundleSummary = {
+  contents: BundleContent[];
+  /** 件數合計。 */
+  quantity: number;
+  /** 內容物原價加總。任一項沒定價就是 null。 */
+  listPrice: number | null;
+  /** 實際要賣多少。組合有填價就用它，沒填就用原價加總。 */
+  price: number | null;
+  /** 成本合計。任一項算不出來就是 null。 */
+  cost: number | null;
+  /** 缺價或缺成本的品項名稱。 */
+  missing: string[];
+};
+
+/**
+ * 把一個組合攤開成可以算的東西。
+ *
+ * 🚫 任一項缺售價，原價加總就是 null；任一項缺成本，成本合計就是 null。
+ *    跟 BOM 一樣不做部分加總：加一半的成本必然偏低。
+ */
+export function summarizeBundle(doc: Doc, bundle: Bundle): BundleSummary {
+  const contents: BundleContent[] = bundle.lines.map((line) => {
+    const item = findPricedItem(doc, line.itemKey);
+    if (!item) return { line, item: null, subtotal: null, cost: null };
+
+    const unitCost = computeProductCost(doc, item.product, item.variant).unitCost;
+    return {
+      line,
+      item,
+      subtotal: item.price === null ? null : item.price * line.quantity,
+      cost: unitCost === null ? null : unitCost * line.quantity,
+    };
+  });
+
+  const missing: string[] = [];
+  for (const content of contents) {
+    const name = content.item?.name ?? "找不到的品項";
+    if (content.subtotal === null) missing.push(`${name}（沒有售價）`);
+    if (content.cost === null) missing.push(`${name}（成本未知）`);
+  }
+
+  const listPrice = contents.some((content) => content.subtotal === null)
+    ? null
+    : contents.reduce((sum, content) => sum + (content.subtotal ?? 0), 0);
+
+  const cost = contents.some((content) => content.cost === null)
+    ? null
+    : contents.reduce((sum, content) => sum + (content.cost ?? 0), 0);
+
+  return {
+    contents,
+    quantity: bundle.lines.reduce((sum, line) => sum + line.quantity, 0),
+    listPrice,
+    price: bundle.price ?? listPrice,
+    cost,
+    missing,
+  };
 }

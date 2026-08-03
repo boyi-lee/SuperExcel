@@ -12,8 +12,10 @@ import {
   lineCost,
   logisticsCost,
   priceForNetProfit,
+  priceForNetRate,
   returnOnCost,
   rollupBom,
+  suggestPrices,
   simulateGroupBuy,
   simulatePromotion,
   totalPercentRate,
@@ -643,5 +645,70 @@ describe("投報率", () => {
     expect(returnOnCost(300, 0)).toBeNull();
     expect(returnOnCost(300, null)).toBeNull();
     expect(returnOnCost(null, 100)).toBeNull();
+  });
+});
+
+describe("依成本反推建議價", () => {
+  const base = {
+    manufacturingCost: 300 as number | null,
+    percentRate: 0.2,
+    averageLogistics: 60,
+    averageOrderValue: null as number | null,
+  };
+
+  it("反推出來的價確實達到目標淨利率（自洽檢查）", () => {
+    const result = priceForNetRate({ ...base, targetRate: 0.25 });
+    if (!result.ok) throw new Error("預期有解");
+
+    const margin = computeMargin({
+      price: result.price,
+      manufacturingCost: base.manufacturingCost,
+      logistics: logisticsCost(result.price, base.averageLogistics, base.averageOrderValue),
+      variableSellingRate: base.percentRate,
+      overheadRate: 0,
+      adSpendRate: 0,
+    });
+    expect(margin.netRate).toBeCloseTo(0.25, 4);
+  });
+
+  it("有客單價時要挑對物流那一段", () => {
+    const input = { ...base, averageOrderValue: 2000, targetRate: 0.25 };
+    const result = priceForNetRate(input);
+    if (!result.ok) throw new Error("預期有解");
+
+    const margin = computeMargin({
+      price: result.price,
+      manufacturingCost: input.manufacturingCost,
+      logistics: logisticsCost(result.price, input.averageLogistics, input.averageOrderValue),
+      variableSellingRate: input.percentRate,
+      overheadRate: 0,
+      adSpendRate: 0,
+    });
+    expect(margin.netRate).toBeCloseTo(0.25, 4);
+  });
+
+  it("🚫 費率加目標率吃掉全部售價時無解", () => {
+    expect(priceForNetRate({ ...base, percentRate: 0.7, targetRate: 0.35 })).toEqual({
+      ok: false,
+      reason: "IMPOSSIBLE",
+    });
+  });
+
+  it("高中低三檔：目標率越高，建議價越高", () => {
+    const tiers = suggestPrices(base, 0.15);
+    expect(tiers).toHaveLength(3);
+    const prices = tiers.map((tier) => (tier.result.ok ? tier.result.price : Number.NaN));
+    expect(prices[0]).toBeLessThan(prices[1]);
+    expect(prices[1]).toBeLessThan(prices[2]);
+  });
+
+  it("最低那一檔就是安控線本身", () => {
+    const tiers = suggestPrices(base, 0.15);
+    expect(tiers[0].targetRate).toBe(0.15);
+  });
+
+  it("🚫 成本未知時三檔都回 NO_COST，不給建議價", () => {
+    const tiers = suggestPrices({ ...base, manufacturingCost: null }, 0.15);
+    expect(tiers.every((tier) => !tier.result.ok && tier.result.reason === "NO_COST")).toBe(true);
   });
 });
