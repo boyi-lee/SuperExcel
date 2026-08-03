@@ -3,7 +3,7 @@
   "private": false,
   "version": "0.1.0",
   "type": "module",
-  "license": "AGPL-3.0-or-later",
+  "license": "FSL-1.1-MIT",
   "description": "電商品牌的成本、定價與促銷試算工具。純前端，資料留在你自己的瀏覽器。",
   "scripts": {
     "dev": "vite",

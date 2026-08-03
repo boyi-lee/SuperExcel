@@ -292,7 +292,7 @@ export function App() {
           </div>
 
           <div className="text-xs leading-relaxed text-ink-3 sm:text-right">
-            <div>Copyright 2026 酒Ann　授權 AGPL-3.0-or-later</div>
+            <div>Copyright 2026 酒Ann　授權 FSL-1.1-MIT</div>
             <div className="mt-1">
               <a className="text-acid underline" href="mailto:cpw688@gmail.com">
                 cpw688@gmail.com
