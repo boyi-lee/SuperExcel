@@ -62,7 +62,7 @@ export function ProductsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Do
           return (
             <div
               key={line.id}
-              className="grid grid-cols-1 items-end gap-3 rounded-lg border border-stone-200 bg-white p-3 sm:grid-cols-2 lg:grid-cols-4"
+              className="grid grid-cols-1 items-end gap-3 rounded-lg border border-line bg-panel p-3 sm:grid-cols-2 lg:grid-cols-4"
             >
               <Field label="物料">
                 <select
@@ -106,7 +106,7 @@ export function ProductsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Do
                   }
                 />
               </Field>
-              <div className="text-xs text-stone-600 sm:pb-3">
+              <div className="text-xs text-ink-3 sm:pb-3">
                 單價 {formatUnitCost(material?.unitCost ?? null, "")}
                 {material?.currency && material.currency !== doc.settings.baseCurrency ? ` ${material.currency}` : ""}
                 {material?.scrapRate ? `，耗損 ${(material.scrapRate * 100).toFixed(1)}%` : ""}
@@ -120,7 +120,7 @@ export function ProductsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Do
           );
         })}
         {lines.length === 0 ? (
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-ink-3">
             {variantMode ? "沒有差異，這個規格的成本與母規格相同。" : "還沒有用料。空的配方成本是「未知」，不是 0。"}
           </p>
         ) : null}
@@ -158,7 +158,7 @@ export function ProductsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Do
                     }`
                   : `${product.variants.length} 個規格　母規格成本 ${formatUnitCost(baseCost.unitCost)}`}
                 {baseCost.missing.length > 0 ? (
-                  <span className="ml-2 text-amber-700">缺 {baseCost.missing.length} 項單價</span>
+                  <span className="ml-2 text-warn">缺 {baseCost.missing.length} 項單價</span>
                 ) : null}
               </>
             }
@@ -221,7 +221,7 @@ export function ProductsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Do
               </div>
             ) : null}
 
-            <h4 className="mt-6 text-sm font-semibold text-stone-800">母規格用料</h4>
+            <h4 className="mt-6 text-sm font-semibold text-ink">母規格用料</h4>
             <div className="mt-2">
               <LineEditor
                 product={product}
@@ -235,7 +235,7 @@ export function ProductsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Do
               <div className="mt-5 overflow-x-auto">
                 <table className="w-full min-w-[20rem] text-sm">
                   <thead>
-                    <tr className="border-b border-stone-200 text-left text-xs text-stone-600">
+                    <tr className="border-b border-line text-left text-xs text-ink-3">
                       <th className="py-2">分類</th>
                       <th className="py-2 text-right">每單位成本</th>
                       <th className="py-2 text-right">佔比</th>
@@ -243,10 +243,10 @@ export function ProductsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Do
                   </thead>
                   <tbody>
                     {baseCost.byCategory.map((row) => (
-                      <tr key={row.categoryId} className="border-b border-stone-100">
+                      <tr key={row.categoryId} className="border-b border-line">
                         <td className="py-2">{row.categoryName}</td>
                         <td className="py-2 text-right">{formatUnitCost(row.cost)}</td>
-                        <td className="py-2 text-right text-stone-600">
+                        <td className="py-2 text-right text-ink-3">
                           {/* 分母未知時佔比也未知，不拿部分加總當分母。 */}
                           {baseCost.unitCost !== null && baseCost.unitCost > 0 && row.cost !== null
                             ? `${((row.cost / baseCost.unitCost) * 100).toFixed(1)}%`
@@ -257,16 +257,16 @@ export function ProductsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Do
                     <tr className="font-semibold">
                       <td className="py-2">合計（每單位）</td>
                       <td className="py-2 text-right">{formatUnitCost(baseCost.unitCost)}</td>
-                      <td className="py-2 text-right text-stone-600">{baseCost.lineCount} 項用料</td>
+                      <td className="py-2 text-right text-ink-3">{baseCost.lineCount} 項用料</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             ) : null}
 
-            <h4 className="mt-6 text-sm font-semibold text-stone-800">
+            <h4 className="mt-6 text-sm font-semibold text-ink">
               規格（顏色、尺寸⋯⋯）
-              <span className="ml-2 text-xs font-normal text-stone-600">
+              <span className="ml-2 text-xs font-normal text-ink-3">
                 只填與母規格不一樣的地方，沒有規格就留空。
               </span>
             </h4>
@@ -285,7 +285,7 @@ export function ProductsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Do
                         effectiveLines(product, variant).length
                       } 項`}
                       {cost.missing.length > 0 ? (
-                        <span className="ml-2 text-amber-700">缺 {cost.missing.length} 項單價</span>
+                        <span className="ml-2 text-warn">缺 {cost.missing.length} 項單價</span>
                       ) : null}
                     </>
                   }
@@ -340,7 +340,7 @@ export function ProductsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Do
                     </div>
                   </div>
 
-                  <h5 className="mt-5 text-sm font-semibold text-stone-800">與母規格的差異</h5>
+                  <h5 className="mt-5 text-sm font-semibold text-ink">與母規格的差異</h5>
                   <div className="mt-2">
                     <LineEditor
                       product={product}
@@ -389,7 +389,7 @@ export function ProductsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Do
       <Card>
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={addProduct}>新增產品</Button>
-          <span className="text-sm text-stone-600">
+          <span className="text-sm text-ink-3">
             目前 {money(doc.products.length)} 項產品、
             {money(doc.products.reduce((sum, product) => sum + product.variants.length, 0))} 個規格。
           </span>

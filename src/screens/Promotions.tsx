@@ -85,7 +85,7 @@ export function PromotionsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: 
             />
           </Field>
           <Field label="原價小計" hint="售價 × 件數，由上面兩欄算出。">
-            <input className={`${inputClass} bg-stone-50`} value={subtotal === null ? "－" : money(subtotal)} readOnly />
+            <input className={`${inputClass} bg-panel-2`} value={subtotal === null ? "－" : money(subtotal)} readOnly />
           </Field>
         </div>
 
@@ -103,7 +103,7 @@ export function PromotionsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: 
         </div>
 
         {cost !== null ? (
-          <p className="mt-3 text-sm text-stone-700">
+          <p className="mt-3 text-sm text-ink-2">
             單位成本 <span className="font-semibold">{formatUnitCost(cost.unitCost)}</span>
             {subtotal === null
               ? `，每筆平均物流 ${rates.logistics.toFixed(2)} 元。`
@@ -137,7 +137,7 @@ export function PromotionsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: 
           <Card
             key={promotion.id}
             title={promotion.name || "未命名方案"}
-            action={<span className="text-xs text-stone-600">費率合計 {pct(breakdown.total)}</span>}
+            action={<span className="text-xs text-ink-3">費率合計 {pct(breakdown.total)}</span>}
           >
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label="方案名稱">
@@ -185,7 +185,7 @@ export function PromotionsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: 
 
             <div className="mt-4 space-y-2">
               {promotion.rules.map((rule) => (
-                <div key={rule.id} className="grid grid-cols-1 items-end gap-3 rounded-lg border border-stone-200 p-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div key={rule.id} className="grid grid-cols-1 items-end gap-3 rounded-lg border border-line p-3 sm:grid-cols-2 lg:grid-cols-4">
                   <Field label="門檻類型">
                     <select
                       className={inputClass}
@@ -273,10 +273,10 @@ export function PromotionsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: 
                 </div>
               ))}
               {promotion.rules.length === 0 ? (
-                <p className="text-sm text-stone-600">還沒有折扣規則，等於原價。</p>
+                <p className="text-sm text-ink-3">還沒有折扣規則，等於原價。</p>
               ) : null}
               {promotion.rules.length > 1 ? (
-                <p className="text-xs text-stone-600">
+                <p className="text-xs text-ink-3">
                   多條規則會<span className="font-semibold">疊加</span>（不是取最優）。要互斥請拆成不同方案分別試算。
                 </p>
               ) : null}
@@ -297,36 +297,36 @@ export function PromotionsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: 
             </div>
 
             {result !== null ? (
-              <div className="mt-5 rounded-lg border border-stone-200 bg-stone-50 p-4">
+              <div className="mt-5 rounded-lg border border-line bg-panel-2 p-4">
                 <dl className="grid gap-3 sm:grid-cols-4">
                   <div>
-                    <dt className="text-xs text-stone-600">折抵</dt>
-                    <dd className="text-lg font-semibold text-stone-900">−{money(result.discount)}</dd>
+                    <dt className="text-xs text-ink-3">折抵</dt>
+                    <dd className="text-lg font-semibold text-ink">−{money(result.discount)}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-stone-600">折後實收</dt>
-                    <dd className="text-lg font-semibold text-stone-900">{money(result.netRevenue)}</dd>
+                    <dt className="text-xs text-ink-3">折後實收</dt>
+                    <dd className="text-lg font-semibold text-ink">{money(result.netRevenue)}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-stone-600">折後淨利</dt>
+                    <dt className="text-xs text-ink-3">折後淨利</dt>
                     <dd
                       className={`text-lg font-semibold ${
-                        result.netProfit !== null && result.netProfit < 0 ? "text-red-700" : "text-stone-900"
+                        result.netProfit !== null && result.netProfit < 0 ? "text-bad" : "text-ink"
                       }`}
                     >
                       {result.netProfit === null ? "－" : money(result.netProfit)}
-                      <span className="ml-2 text-sm font-normal text-stone-600">{pct(result.netRate)}</span>
+                      <span className="ml-2 text-sm font-normal text-ink-3">{pct(result.netRate)}</span>
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-stone-600">這樣打折還有賺嗎</dt>
+                    <dt className="text-xs text-ink-3">這樣打折還有賺嗎</dt>
                     <dd className="text-lg font-semibold">
                       {result.profitable === null ? (
-                        <span className="text-amber-700">不知道（成本未知）</span>
+                        <span className="text-warn">不知道（成本未知）</span>
                       ) : result.profitable ? (
-                        <span className="text-brand-700">有</span>
+                        <span className="text-acid">有</span>
                       ) : (
-                        <span className="text-red-700">沒有，這樣賣是虧的</span>
+                        <span className="text-bad">沒有，這樣賣是虧的</span>
                       )}
                     </dd>
                   </div>
@@ -339,7 +339,7 @@ export function PromotionsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: 
                   但那不是因為賣得好，是因為少付了本來就該分攤的費用。
                 */}
                 {result.netProfitAtFullPrice !== null ? (
-                  <div className="mt-4 border-t border-stone-200 pt-3 text-sm text-stone-700">
+                  <div className="mt-4 border-t border-line pt-3 text-sm text-ink-2">
                     <p>
                       原價淨利 <span className="font-semibold">{money(result.netProfitAtFullPrice)}</span>
                       ，折後 <span className="font-semibold">{money(result.netProfit)}</span>，
@@ -348,20 +348,20 @@ export function PromotionsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: 
                       </span>
                       ，但你折掉了 {money(result.discount)}。
                     </p>
-                    <p className="mt-1 text-xs text-stone-600">
+                    <p className="mt-1 text-xs text-ink-3">
                       差額 {money(result.savedVariableCost)} 元是<span className="font-semibold">少付的費用</span>
                       （變動銷售、固定分攤與物流都是按售價算的，售價降了它們就跟著降）。
                       這不是多賺，只是少付。判斷活動好不好，要看銷量有沒有真的增加。
                     </p>
                   </div>
                 ) : (
-                  <p className="mt-4 border-t border-stone-200 pt-3 text-xs text-stone-600">
+                  <p className="mt-4 border-t border-line pt-3 text-xs text-ink-3">
                     因為降價而少付的費用是 {money(result.savedVariableCost)} 元。
                     成本補齊之後，這裡會告訴你「少賺多少」與「少付多少」分別是多少。
                   </p>
                 )}
 
-                <p className="mt-3 text-xs text-stone-600">
+                <p className="mt-3 text-xs text-ink-3">
                   折後淨利 ＝ 實收 − 單位成本×件數 − 實收×費率合計（{pct(breakdown.total)}） − 物流。
                 </p>
               </div>
@@ -373,7 +373,7 @@ export function PromotionsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: 
       <Card>
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={addPromotion}>新增促銷方案</Button>
-          <span className="text-sm text-stone-600">目前 {money(doc.promotions.length)} 個方案。</span>
+          <span className="text-sm text-ink-3">目前 {money(doc.promotions.length)} 個方案。</span>
         </div>
       </Card>
     </>

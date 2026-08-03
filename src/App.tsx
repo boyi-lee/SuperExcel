@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, Note } from "./components/ui";
 import { RatesScreen } from "./screens/Rates";
 import { MaterialsScreen } from "./screens/Materials";
@@ -7,6 +7,7 @@ import { MarginsScreen } from "./screens/Margins";
 import { PromotionsScreen } from "./screens/Promotions";
 import { ModelsScreen } from "./screens/Models";
 import { AboutScreen } from "./screens/About";
+import { SettingsScreen } from "./screens/Settings";
 import { downloadDoc, emptyDoc, isStorageAvailable, loadDoc, parseDoc, saveDoc, type Doc } from "./lib/doc";
 import { importSuperExcel } from "./lib/import-xlsx";
 
@@ -18,6 +19,7 @@ const TABS = [
   { key: "margins", label: "邊際貢獻與定價" },
   { key: "promotions", label: "促銷試算" },
   { key: "models", label: "語言模型" },
+  { key: "settings", label: "資料管理" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -45,14 +47,14 @@ export function App() {
   const [doc, setDoc] = useState<Doc>(() => loadDoc() ?? emptyDoc());
   // 第一次進來先看來由，不要一開場就丟一堆欄位。看過之後記住，下次直接進費率設定。
   const [tab, setTab] = useState<TabKey>(() => (hasSeenAbout() ? "rates" : "about"));
+  const [menuOpen, setMenuOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** 上次匯出之後有沒有改過東西。用來決定要不要提醒下載。 */
   const [dirty, setDirty] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const xlsxRef = useRef<HTMLInputElement>(null);
 
   const storageOk = useMemo(() => isStorageAvailable(), []);
+  const currentTab = TABS.find((item) => item.key === tab) ?? TABS[0];
 
   useEffect(() => {
     saveDoc(doc);
@@ -113,8 +115,9 @@ export function App() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
+      {/* ⚠️ 不用 flex-wrap：手機上標題會撐滿一整行，選單鈕就被擠到下一行去了。 */}
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-4">
           {/* 放 public/logo.png 就會顯示。沒放也不會留下破圖，因此不必為了佔位塞一張假圖。 */}
           <img
             src="/logo.png"
@@ -123,59 +126,51 @@ export function App() {
             onLoad={(event) => event.currentTarget.classList.remove("hidden")}
           />
           <div>
-          <h1 className="text-3xl font-bold text-stone-900">超級 Excel</h1>
-          <p className="mt-2 max-w-2xl text-sm text-stone-600">
+          <h1 className="text-3xl font-bold text-ink">超級 Excel</h1>
+          <p className="mt-2 max-w-2xl text-sm text-ink-3">
             算出商品真正的成本與邊際貢獻，以及打折之後還剩多少。
             沒有伺服器、不用註冊，你的資料只留在這台電腦的瀏覽器裡。
           </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={handleExport}>下載存檔</Button>
-          <Button variant="secondary" onClick={() => fileRef.current?.click()}>
-            讀取存檔
-          </Button>
-          <Button variant="secondary" onClick={() => xlsxRef.current?.click()}>
-            匯入試算表
-          </Button>
-          <Button
-            variant="danger"
-            onClick={() => {
-              if (confirm("清空所有資料並重新開始？沒有下載過的內容會永久消失。")) {
-                setDoc(emptyDoc());
-                setDirty(false);
-                setWarnings([]);
-                notify("已清空。");
-              }
-            }}
+        {/*
+          ⚠️ 讀取、匯入、清空都搬到「資料管理」頁了，但「下載存檔」留在這裡。
+             它是這個工具唯一的存檔機制，藏進設定頁等於讓人更容易忘記存檔而弄丟資料。
+        */}
+        <div className="flex items-center gap-2">
+          <div className="hidden gap-2 sm:flex">
+            <Button onClick={handleExport}>下載存檔</Button>
+            <Button variant="secondary" onClick={() => setTab("settings")}>
+              資料管理
+            </Button>
+          </div>
+
+          {/* 手機的選單鈕收在標題列裡，不另外佔一整塊版面。 */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-expanded={menuOpen}
+            aria-controls="main-nav"
+            aria-label={menuOpen ? "關閉選單" : "開啟選單"}
+            className="rounded-lg border border-line p-2 text-ink sm:hidden"
           >
-            清空
-          </Button>
+            <svg viewBox="0 0 24 24" aria-hidden className="h-6 w-6">
+              {menuOpen ? (
+                <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              ) : (
+                <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              )}
+            </svg>
+          </button>
         </div>
       </header>
 
-      <input
-        ref={fileRef}
-        type="file"
-        accept="application/json,.json"
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) void handleImportJson(file);
-          event.target.value = "";
-        }}
-      />
-      <input
-        ref={xlsxRef}
-        type="file"
-        accept=".xlsx"
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) void handleImportXlsx(file);
-          event.target.value = "";
-        }}
-      />
+      <div className="mt-4 flex gap-2 sm:hidden">
+        <Button onClick={handleExport}>下載存檔</Button>
+        <Button variant="secondary" onClick={() => setTab("settings")}>
+          資料管理
+        </Button>
+      </div>
 
       <div className="mt-4 space-y-3">
         {!storageOk ? (
@@ -205,19 +200,40 @@ export function App() {
       </div>
 
       {/*
-        ⚠️ 分頁列橫向捲動而不換行。分頁只會越加越多，換行的話在手機上會吃掉半個螢幕，
-           而且每次多一個分頁版面就再跳一次。
+        ⚠️ 手機的選單從標題列的漢堡鈕展開，不在內容上方常駐一張卡。
+           常駐的話每一頁都被推下去一截，而那張卡九成的時間都不需要看。
       */}
-      <nav className="mt-6 -mx-4 overflow-x-auto border-b border-stone-200 px-4">
-        <div className="flex min-w-max gap-1 pb-px">
+      {menuOpen ? (
+        <nav id="main-nav" className="mt-3 overflow-hidden rounded-lg border border-line bg-panel sm:hidden">
+          {TABS.map((item) => (
+            <button
+              key={item.key}
+              onClick={() => {
+                setTab(item.key);
+                setMenuOpen(false);
+              }}
+              aria-current={tab === item.key ? "page" : undefined}
+              className={`block w-full border-b border-line px-4 py-3 text-left text-sm font-semibold last:border-b-0 ${
+                tab === item.key ? "bg-acid/10 text-acid" : "text-ink-2 hover:bg-panel-2"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      ) : null}
+
+      <nav className="mt-6 hidden border-b border-line sm:block">
+        <div className="flex flex-wrap gap-1 pb-px">
           {TABS.map((item) => (
             <button
               key={item.key}
               onClick={() => setTab(item.key)}
+              aria-current={tab === item.key ? "page" : undefined}
               className={`shrink-0 rounded-t-lg px-4 py-2 text-sm font-semibold ${
                 tab === item.key
-                  ? "border border-b-white border-stone-200 bg-white text-brand-800"
-                  : "text-stone-600 hover:text-stone-900"
+                  ? "border border-b-panel border-line bg-panel text-acid"
+                  : "text-ink-3 hover:text-ink"
               }`}
             >
               {item.label}
@@ -226,7 +242,9 @@ export function App() {
         </div>
       </nav>
 
-      <main className="mt-6 space-y-6">
+      <p className="mt-6 font-mono text-xs uppercase tracking-widest text-acid sm:hidden">{currentTab.label}</p>
+
+      <main className="mt-3 space-y-6 sm:mt-6">
         {tab === "about" && (
           <AboutScreen
             onStart={() => {
@@ -241,9 +259,26 @@ export function App() {
         {tab === "margins" && <MarginsScreen doc={doc} />}
         {tab === "promotions" && <PromotionsScreen doc={doc} onChange={update} />}
         {tab === "models" && <ModelsScreen />}
+        {tab === "settings" && (
+          <SettingsScreen
+            doc={doc}
+            dirty={dirty}
+            storageOk={storageOk}
+            onExport={handleExport}
+            onImportJson={(file) => void handleImportJson(file)}
+            onImportXlsx={(file) => void handleImportXlsx(file)}
+            onReset={() => {
+              if (!confirm("清空所有資料並重新開始？沒有下載過的內容會永久消失。")) return;
+              setDoc(emptyDoc());
+              setDirty(false);
+              setWarnings([]);
+              notify("已清空。");
+            }}
+          />
+        )}
       </main>
 
-      <footer className="mt-12 border-t border-stone-200 pt-6 text-sm text-stone-600">
+      <footer className="mt-12 border-t border-line pt-6 text-sm text-ink-3">
         <p>
           開源專案，以 AGPL-3.0 授權釋出。這個工具沒有後端，我們不蒐集也收不到你的任何資料。
           唯一的例外是你自己在「語言模型」頁設定並使用第三方模型時，送出的內容會到那家供應商，

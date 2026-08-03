@@ -55,7 +55,7 @@ export function ModelsScreen() {
 
       <Card
         title="供應商"
-        action={<span className="text-xs text-stone-600">目前支援 {PROVIDERS.length} 家</span>}
+        action={<span className="text-xs text-ink-3">目前支援 {PROVIDERS.length} 家</span>}
       >
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {PROVIDERS.map((item) => {
@@ -65,12 +65,12 @@ export function ModelsScreen() {
                 key={item.id}
                 onClick={() => setSettings(switchProvider(settings, item))}
                 className={`rounded-lg border p-3 text-left ${
-                  selected ? "border-brand-500 bg-brand-50" : "border-stone-200 bg-white hover:bg-stone-50"
+                  selected ? "border-brand-500 bg-acid/10" : "border-line bg-panel hover:bg-panel-2"
                 }`}
               >
-                <span className="block text-sm font-semibold text-stone-900">{item.name}</span>
-                <span className="mt-1 block text-xs text-stone-600">{item.fitFor}</span>
-                <span className="mt-2 block text-xs text-stone-500">
+                <span className="block text-sm font-semibold text-ink">{item.name}</span>
+                <span className="mt-1 block text-xs text-ink-3">{item.fitFor}</span>
+                <span className="mt-2 block text-xs text-ink-3">
                   {item.needsApiKey ? "需要 API 金鑰" : "不需要金鑰，跑在本機"}
                 </span>
               </button>

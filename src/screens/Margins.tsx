@@ -50,7 +50,7 @@ export function MarginsScreen({ doc }: { doc: Doc }) {
           </Field>
         </div>
 
-        <p className="mt-4 text-sm text-stone-700">
+        <p className="mt-4 text-sm text-ink-2">
           目前費率合計 <span className="font-semibold">{pct(percentRate)}</span>
           （金流 {pct(rates.payment)}＋稅 {pct(rates.tax)}＋固定費用分攤 {pct(rates.overhead)}
           {channel ? `＋通路 ${pct(channel.value)}` : ""}
@@ -71,14 +71,14 @@ export function MarginsScreen({ doc }: { doc: Doc }) {
         </div>
       </Card>
 
-      <Card title="各產品" action={<span className="text-xs text-stone-600">共 {money(rows.length)} 項</span>}>
+      <Card title="各產品" action={<span className="text-xs text-ink-3">共 {money(rows.length)} 項</span>}>
         {rows.length === 0 ? (
-          <p className="text-sm text-stone-600">還沒有產品。</p>
+          <p className="text-sm text-ink-3">還沒有產品。</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[46rem] text-sm">
               <thead>
-                <tr className="border-b border-stone-200 text-left text-xs text-stone-600">
+                <tr className="border-b border-line text-left text-xs text-ink-3">
                   <th className="py-2">產品</th>
                   <th className="py-2 text-right">售價</th>
                   <th className="py-2 text-right">單位成本</th>
@@ -91,24 +91,24 @@ export function MarginsScreen({ doc }: { doc: Doc }) {
               </thead>
               <tbody>
                 {rows.map(({ item, cost, margin, floor }) => (
-                  <tr key={item.key} className="border-b border-stone-100 align-top">
+                  <tr key={item.key} className="border-b border-line align-top">
                     <td className="py-2">
-                      <span className="font-medium text-stone-900">{item.name || "未命名"}</span>
-                      {item.sku ? <span className="ml-2 text-xs text-stone-500">{item.sku}</span> : null}
+                      <span className="font-medium text-ink">{item.name || "未命名"}</span>
+                      {item.sku ? <span className="ml-2 text-xs text-ink-3">{item.sku}</span> : null}
                       {cost.missing.length > 0 ? (
-                        <span className="mt-1 block text-xs text-amber-700">
+                        <span className="mt-1 block text-xs text-warn">
                           缺 {cost.missing.length} 項單價，成本未知
                         </span>
                       ) : null}
-                      {item.price === null ? <span className="mt-1 block text-xs text-amber-700">尚未定價</span> : null}
+                      {item.price === null ? <span className="mt-1 block text-xs text-warn">尚未定價</span> : null}
                     </td>
                     <td className="py-2 text-right">{item.price === null ? "－" : money(item.price)}</td>
                     <td className="py-2 text-right">{formatUnitCost(cost.unitCost, "")}</td>
-                    <td className="py-2 text-right text-stone-600">
+                    <td className="py-2 text-right text-ink-3">
                       {margin.grossContribution === null ? "－" : money(margin.grossContribution)}
                       <span className="block text-xs">{pct(margin.grossRate)}</span>
                     </td>
-                    <td className="py-2 text-right text-stone-600">
+                    <td className="py-2 text-right text-ink-3">
                       {margin.operatingContribution === null ? "－" : money(margin.operatingContribution)}
                       <span className="block text-xs">
                         扣 {money(margin.variableSellingCost)}＋物流 {margin.logistics.toFixed(0)}
@@ -116,18 +116,18 @@ export function MarginsScreen({ doc }: { doc: Doc }) {
                     </td>
                     <td
                       className={`py-2 text-right font-semibold ${
-                        margin.netProfit !== null && margin.netProfit < 0 ? "text-red-700" : "text-stone-900"
+                        margin.netProfit !== null && margin.netProfit < 0 ? "text-bad" : "text-ink"
                       }`}
                     >
                       {margin.netProfit === null ? "－" : money(margin.netProfit)}
-                      <span className="block text-xs font-normal text-stone-600">
+                      <span className="block text-xs font-normal text-ink-3">
                         扣分攤 {money(margin.overheadCost)}
                         {margin.adSpendCost > 0 ? `＋廣告 ${money(margin.adSpendCost)}` : ""}
                       </span>
                     </td>
                     <td
                       className={`py-2 text-right font-semibold ${
-                        margin.netRate !== null && margin.netRate < 0 ? "text-red-700" : "text-stone-900"
+                        margin.netRate !== null && margin.netRate < 0 ? "text-bad" : "text-ink"
                       }`}
                     >
                       {pct(margin.netRate)}
@@ -136,12 +136,12 @@ export function MarginsScreen({ doc }: { doc: Doc }) {
                       {floor.ok ? (
                         money(floor.floorPrice)
                       ) : floor.reason === "NO_COST" ? (
-                        <span className="text-stone-600">－</span>
+                        <span className="text-ink-3">－</span>
                       ) : (
-                        <span className="text-red-700">無解</span>
+                        <span className="text-bad">無解</span>
                       )}
                       {floor.ok && item.price !== null && item.price < floor.floorPrice ? (
-                        <span className="block text-xs text-red-700">目前售價低於下限</span>
+                        <span className="block text-xs text-bad">目前售價低於下限</span>
                       ) : null}
                     </td>
                   </tr>
@@ -151,7 +151,7 @@ export function MarginsScreen({ doc }: { doc: Doc }) {
           </div>
         )}
 
-        <div className="mt-4 space-y-1 text-xs text-stone-600">
+        <div className="mt-4 space-y-1 text-xs text-ink-3">
           <p>
             <span className="font-semibold">毛利</span> ＝ 售價 − 單位成本。
             <span className="font-semibold">微利</span> ＝ 毛利 − 變動銷售費用（金流、通路、稅、分潤）− 物流。

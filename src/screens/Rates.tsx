@@ -86,9 +86,9 @@ export function RatesScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Doc) 
             checked={doc.settings.priceIncludesTax}
             onChange={(event) => setSettings({ priceIncludesTax: event.target.checked })}
           />
-          <span className="text-sm text-stone-700">
+          <span className="text-sm text-ink-2">
             商品售價為含稅價
-            <span className="mt-1 block text-xs text-stone-600">
+            <span className="mt-1 block text-xs text-ink-3">
               勾選時，售價中的實際稅負佔比是 {pct(doc.settings.taxRate / (1 + doc.settings.taxRate))}
               （{pct(doc.settings.taxRate)} ÷ {(1 + doc.settings.taxRate).toFixed(2)}），
               未勾選時就是 {pct(doc.settings.taxRate)}。
@@ -97,8 +97,8 @@ export function RatesScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Doc) 
           </span>
         </label>
 
-        <fieldset className="mt-4 rounded-lg border border-stone-200 p-4">
-          <legend className="px-2 text-sm font-semibold text-stone-800">廣告費</legend>
+        <fieldset className="mt-4 rounded-lg border border-line p-4">
+          <legend className="px-2 text-sm font-semibold text-ink">廣告費</legend>
           <div className="grid gap-3">
             {(
               [
@@ -113,9 +113,9 @@ export function RatesScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Doc) 
                   checked={doc.settings.adSpendMode === value}
                   onChange={() => setSettings({ adSpendMode: value })}
                 />
-                <span className="text-sm text-stone-700">
+                <span className="text-sm text-ink-2">
                   {label}
-                  <span className="mt-1 block text-xs text-stone-600">{hint}</span>
+                  <span className="mt-1 block text-xs text-ink-3">{hint}</span>
                 </span>
               </label>
             ))}
@@ -139,7 +139,7 @@ export function RatesScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Doc) 
       </Card>
 
       <Card title="目前的合計">
-        <p className="text-sm text-stone-700">
+        <p className="text-sm text-ink-2">
           金流 {pct(rates.payment)} ＋ 稅 {pct(rates.tax)} ＋ 固定費用分攤 {pct(rates.overhead)}
           {ad.included ? ` ＋ 廣告 ${pct(ad.rate)}` : ""} ={" "}
           <span className="font-semibold">{pct(total)}</span>，另每筆平均物流 {rates.logistics.toFixed(2)} 元
@@ -175,7 +175,7 @@ export function RatesScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Doc) 
           >
             <div className="space-y-2">
               {rows.map((rate) => (
-                <div key={rate.id} className="grid grid-cols-1 items-end gap-3 rounded-lg border border-stone-200 p-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div key={rate.id} className="grid grid-cols-1 items-end gap-3 rounded-lg border border-line p-3 sm:grid-cols-2 lg:grid-cols-4">
                   <Field label="名稱">
                     <input
                       className={inputClass}
@@ -243,7 +243,7 @@ export function RatesScreen({ doc, onChange }: { doc: Doc; onChange: (doc: Doc) 
                   </Button>
                 </div>
               ))}
-              {rows.length === 0 ? <p className="text-sm text-stone-600">尚未設定。</p> : null}
+              {rows.length === 0 ? <p className="text-sm text-ink-3">尚未設定。</p> : null}
             </div>
             <div className="mt-3">
               <Button variant="secondary" onClick={() => addRate(kind)}>

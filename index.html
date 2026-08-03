@@ -5,8 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>超級 Excel｜成本、定價與促銷試算</title>
     <meta name="description" content="算出商品真正的成本與邊際貢獻，以及打折之後還剩多少。純前端，資料只留在你自己的瀏覽器。" />
+    <link rel="icon" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+
+    <!--
+      分享用的預覽卡。
+      ⚠️ og:image 必須是絕對網址：Facebook 與 LINE 不吃相對路徑，吃不到就整張卡不顯示。
+         換網域部署時記得一起改這裡，不然分享出去會是上一個網域的圖。
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="超級 Excel" />
+    <meta property="og:locale" content="zh_TW" />
+    <meta property="og:title" content="超級 Excel｜算出一件商品真正的成本" />
+    <meta
+      property="og:description"
+      content="成本、邊際貢獻，以及打折之後還剩多少。算不出來就說算不出來，不給你一個好看的假數字。純前端，資料只留在你的瀏覽器。"
+    />
+    <meta property="og:url" content="https://super-excel.vercel.app/" />
+    <meta property="og:image" content="https://super-excel.vercel.app/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="超級 Excel：算出一件商品真正的成本，以及打折之後還剩多少" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="超級 Excel｜算出一件商品真正的成本" />
+    <meta
+      name="twitter:description"
+      content="成本、邊際貢獻，以及打折之後還剩多少。算不出來就說算不出來，不給你一個好看的假數字。"
+    />
+    <meta name="twitter:image" content="https://super-excel.vercel.app/og.png" />
   </head>
-  <body class="bg-stone-50 text-stone-900">
+  <body class="bg-bg text-ink">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

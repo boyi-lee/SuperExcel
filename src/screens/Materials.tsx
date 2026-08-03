@@ -145,7 +145,7 @@ export function MaterialsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: D
       >
         <div className="space-y-2">
           {categories.map((category) => (
-            <div key={category.id} className="grid grid-cols-1 items-end gap-3 rounded-lg border border-stone-200 p-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div key={category.id} className="grid grid-cols-1 items-end gap-3 rounded-lg border border-line p-3 sm:grid-cols-2 lg:grid-cols-4">
               <Field label="分類名稱">
                 <input
                   className={inputClass}
@@ -181,7 +181,7 @@ export function MaterialsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: D
               </Button>
             </div>
           ))}
-          {categories.length === 0 ? <p className="text-sm text-stone-600">尚未建立分類。</p> : null}
+          {categories.length === 0 ? <p className="text-sm text-ink-3">尚未建立分類。</p> : null}
         </div>
         <div className="mt-3">
           <Button variant="secondary" onClick={addCategory}>
@@ -193,7 +193,7 @@ export function MaterialsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: D
       <Accordion title="供應商" summary={`${doc.suppliers.length} 家。選填，只是方便日後回頭問價。`}>
         <div className="space-y-2">
           {doc.suppliers.map((supplier) => (
-            <div key={supplier.id} className="grid grid-cols-1 items-end gap-3 rounded-lg border border-stone-200 p-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div key={supplier.id} className="grid grid-cols-1 items-end gap-3 rounded-lg border border-line p-3 sm:grid-cols-2 lg:grid-cols-4">
               <Field label="名稱">
                 <input
                   className={inputClass}
@@ -225,7 +225,7 @@ export function MaterialsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: D
               </Button>
             </div>
           ))}
-          {doc.suppliers.length === 0 ? <p className="text-sm text-stone-600">尚未建立供應商。</p> : null}
+          {doc.suppliers.length === 0 ? <p className="text-sm text-ink-3">尚未建立供應商。</p> : null}
         </div>
         <div className="mt-3">
           <Button variant="secondary" onClick={addSupplier}>
@@ -258,7 +258,7 @@ export function MaterialsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: D
             const base = unitCostBase(material, doc.settings.baseCurrency);
 
             return (
-              <div key={material.id} className="rounded-lg border border-stone-200 p-3">
+              <div key={material.id} className="rounded-lg border border-line p-3">
                 <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <Field label="名稱">
                     <input
@@ -364,10 +364,10 @@ export function MaterialsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: D
                   </Button>
                 </div>
 
-                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-stone-600">
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-ink-3">
                   <span>
                     本位幣單價：
-                    <span className="font-semibold text-stone-800">{formatUnitCost(base, "")}</span>
+                    <span className="font-semibold text-ink">{formatUnitCost(base, "")}</span>
                     {material.unit ? ` / ${material.unit}` : ""}
                   </span>
                   {material.scrapRate ? (
@@ -377,7 +377,7 @@ export function MaterialsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: D
                     </span>
                   ) : null}
                   {foreign && material.fxRate === null ? (
-                    <span className="font-semibold text-amber-700">缺匯率，這項視為沒有單價。</span>
+                    <span className="font-semibold text-warn">缺匯率，這項視為沒有單價。</span>
                   ) : null}
                 </div>
 
@@ -393,7 +393,7 @@ export function MaterialsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: D
             );
           })}
           {doc.materials.length === 0 ? (
-            <p className="text-sm text-stone-600">尚未建立物料。先建物料，再到「產品與用料」組成配方。</p>
+            <p className="text-sm text-ink-3">尚未建立物料。先建物料，再到「產品與用料」組成配方。</p>
           ) : null}
         </div>
 
@@ -401,7 +401,7 @@ export function MaterialsScreen({ doc, onChange }: { doc: Doc; onChange: (doc: D
           <Button variant="secondary" onClick={addMaterial}>
             新增物料
           </Button>
-          <span className="text-xs text-stone-600">
+          <span className="text-xs text-ink-3">
             已有單價的有 {money(doc.materials.length - missing.length)} 項。
           </span>
         </div>

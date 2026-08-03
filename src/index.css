@@ -1,3 +1,27 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  /*
+    深色主題要連 html 一起上色。只給 body 的話，捲到底部的回彈區域、
+    以及視窗比內容寬時的右側，都會露出瀏覽器預設的白色。
+  */
+  html {
+    @apply bg-bg text-ink;
+    color-scheme: dark;
+  }
+
+  /* 表單元件用瀏覽器的深色樣式，不然核取方塊與下拉選單會是一塊白的。 */
+  input,
+  select,
+  textarea,
+  button {
+    color-scheme: dark;
+  }
+
+  /* 數字欄位靠左讀起來比較順，但金額還是要能一眼對齊，所以只調字體不調對齊。 */
+  input[type="number"] {
+    font-variant-numeric: tabular-nums;
+  }
+}

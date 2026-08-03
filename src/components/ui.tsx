@@ -13,9 +13,9 @@ export function Field({
 }) {
   return (
     <label className={`flex flex-col gap-1 ${className}`}>
-      <span className="text-xs font-medium text-stone-700">{label}</span>
+      <span className="text-xs font-medium text-ink-2">{label}</span>
       {children}
-      {hint ? <span className="text-xs text-stone-600">{hint}</span> : null}
+      {hint ? <span className="text-xs text-ink-3">{hint}</span> : null}
     </label>
   );
 }
@@ -23,14 +23,14 @@ export function Field({
 // ⚠️ 手機上 w-full，桌機才給固定寬度。以前寫死 w-40 的欄位在窄螢幕會擠成一條，
 //    而這個工具的使用者常常是在倉庫、市集現場拿手機對成本。
 export const inputClass =
-  "w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500";
+  "w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm focus:border-acid focus:outline-none focus:ring-1 focus:ring-acid";
 
 export function Card({ title, action, children }: { title?: string; action?: ReactNode; children: ReactNode }) {
   return (
-    <section className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
+    <section className="rounded-xl border border-line bg-panel p-4 sm:p-5">
       {title ? (
         <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="text-base font-semibold text-stone-900">{title}</h3>
+          <h3 className="text-base font-semibold text-ink">{title}</h3>
           {action}
         </div>
       ) : null}
@@ -60,7 +60,7 @@ export function Accordion({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const frame =
-    tone === "sub" ? "rounded-lg border border-stone-200 bg-stone-50" : "rounded-xl border border-stone-200 bg-white";
+    tone === "sub" ? "rounded-lg border border-line bg-panel-2" : "rounded-xl border border-line bg-panel";
 
   return (
     <section className={frame}>
@@ -72,16 +72,16 @@ export function Accordion({
       >
         <span
           aria-hidden
-          className={`shrink-0 text-stone-400 transition-transform ${open ? "rotate-90" : ""}`}
+          className={`shrink-0 text-ink-3 transition-transform ${open ? "rotate-90" : ""}`}
         >
           ▶
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-base font-semibold text-stone-900">{title}</span>
-          {summary ? <span className="mt-0.5 block text-xs text-stone-600">{summary}</span> : null}
+          <span className="block truncate text-base font-semibold text-ink">{title}</span>
+          {summary ? <span className="mt-0.5 block text-xs text-ink-3">{summary}</span> : null}
         </span>
       </button>
-      {open ? <div className="border-t border-stone-200 px-4 py-4 sm:px-5">{children}</div> : null}
+      {open ? <div className="border-t border-line px-4 py-4 sm:px-5">{children}</div> : null}
     </section>
   );
 }
@@ -93,9 +93,9 @@ export function Row({ children }: { children: ReactNode }) {
 
 export function Note({ tone = "info", children }: { tone?: "info" | "warn" | "danger"; children: ReactNode }) {
   const styles = {
-    info: "border-stone-200 bg-stone-50 text-stone-700",
-    warn: "border-amber-200 bg-amber-50 text-amber-900",
-    danger: "border-red-200 bg-red-50 text-red-800",
+    info: "border-line bg-panel-2 text-ink-2",
+    warn: "border-warn/40 bg-warn/10 text-warn",
+    danger: "border-bad/40 bg-bad/10 text-bad",
   }[tone];
   return <p className={`rounded-lg border px-4 py-3 text-sm ${styles}`}>{children}</p>;
 }
@@ -114,9 +114,12 @@ export function Button({
   disabled?: boolean;
 }) {
   const styles = {
-    primary: "bg-brand-600 text-white hover:bg-brand-700 disabled:bg-stone-300",
-    secondary: "border border-stone-300 bg-white text-stone-800 hover:bg-stone-50",
-    danger: "border border-red-200 bg-white text-red-700 hover:bg-red-50",
+    // ⚠️ 停用狀態也要讀得懂。WCAG 雖然放過 disabled 元件，但看不清楚的按鈕
+    //    會讓人以為畫面壞了，而不是知道自己還缺什麼才能按。
+    // 🚫 酸綠底一定配深色字。白字配酸綠是 1.3:1，等於看不見。
+    primary: "bg-acid text-bg hover:bg-acid-dim disabled:bg-line disabled:text-ink-3",
+    secondary: "border border-line bg-panel text-ink hover:bg-panel-2",
+    danger: "border border-bad/40 bg-panel text-bad hover:bg-bad/10",
   }[variant];
   return (
     <button type={type} onClick={onClick} disabled={disabled} className={`rounded-lg px-4 py-2 text-sm font-semibold ${styles}`}>
