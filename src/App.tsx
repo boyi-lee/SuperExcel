@@ -13,6 +13,7 @@ import { DiscountsScreen } from "./screens/Discounts";
 import { GroupBuyScreen } from "./screens/GroupBuy";
 import { AnalysisScreen } from "./screens/Analysis";
 import { downloadDoc, emptyDoc, isStorageAvailable, loadDoc, parseDoc, saveDoc, type Doc } from "./lib/doc";
+import { sampleDoc } from "./lib/sample";
 import { importSuperExcel } from "./lib/import-xlsx";
 
 const TABS = [
@@ -83,6 +84,13 @@ export function App() {
   function fail(text: string) {
     setError(text);
     setMessage(null);
+  }
+
+  function loadSample(goTo: TabKey) {
+    if (!confirm("載入範例資料？目前畫面上的內容會被整份取代，沒有下載過的就會不見。")) return;
+    update(sampleDoc());
+    setTab(goTo);
+    notify("已載入範例資料。這組數字是編出來的示範，不是真實成本。看完到「資料管理」按清空就乾淨了。");
   }
 
   function handleExport() {
@@ -244,7 +252,9 @@ export function App() {
       <p className="mt-6 font-mono text-xs uppercase tracking-widest text-acid sm:hidden">{currentTab.label}</p>
 
       <main className="mt-3 space-y-6 sm:mt-6">
-        {tab === "about" && <AboutScreen onStart={() => setTab("rates")} />}
+        {tab === "about" && (
+          <AboutScreen onStart={() => setTab("rates")} onLoadSample={() => loadSample("bundles")} />
+        )}
         {tab === "rates" && <RatesScreen doc={doc} onChange={update} />}
         {tab === "materials" && <MaterialsScreen doc={doc} onChange={update} />}
         {tab === "products" && <ProductsScreen doc={doc} onChange={update} />}
@@ -269,6 +279,7 @@ export function App() {
               setDirty(true);
               notify("已讀取。這一份跟主檔存在同一個瀏覽器裡，記得另外下載一份到硬碟。");
             }}
+            onLoadSample={() => loadSample("bundles")}
             onReset={() => {
               if (!confirm("清空所有資料並重新開始？沒有下載過的內容會永久消失。")) return;
               setDoc(emptyDoc());

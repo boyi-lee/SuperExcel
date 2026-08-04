@@ -8,6 +8,7 @@ import { useRef, useState } from "react";
 import { Button, Card, Field, Note, inputClass } from "../components/ui";
 import { newId, type Doc } from "../lib/doc";
 import { MAX_SLOTS, deleteSlot, loadSlots, saveSlot, type SavedSlot } from "../lib/saves";
+import { SAMPLE_NOTE } from "../lib/sample";
 
 export function SettingsScreen({
   doc,
@@ -17,6 +18,7 @@ export function SettingsScreen({
   onImportJson,
   onImportXlsx,
   onReset,
+  onLoadSample,
   onLoadSlot,
 }: {
   doc: Doc;
@@ -26,6 +28,7 @@ export function SettingsScreen({
   onImportJson: (file: File) => void;
   onImportXlsx: (file: File) => void;
   onReset: () => void;
+  onLoadSample: () => void;
   onLoadSlot: (doc: Doc) => void;
 }) {
   const [slots, setSlots] = useState<SavedSlot[]>(() => loadSlots());
@@ -282,6 +285,15 @@ export function SettingsScreen({
         <div className="mt-4">
           <Button variant="secondary" onClick={() => xlsxRef.current?.click()}>
             選擇 Excel 檔⋯⋯
+          </Button>
+        </div>
+      </Card>
+
+      <Card title="範例資料">
+        <p className="text-sm leading-relaxed text-ink-2">{SAMPLE_NOTE}</p>
+        <div className="mt-4">
+          <Button variant="secondary" onClick={onLoadSample}>
+            載入範例資料
           </Button>
         </div>
       </Card>

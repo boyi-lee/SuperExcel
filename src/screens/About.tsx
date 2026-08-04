@@ -7,6 +7,7 @@
 //    文案先破功的話，後面叫人相信那些難看的數字就沒有說服力了。
 
 import { Button, Card } from "../components/ui";
+import { SAMPLE_NOTE } from "../lib/sample";
 
 /** 特色。每一條都要對得上程式裡真的有做的事，寫得出來卻做不到就是騙人。 */
 const FEATURES = [
@@ -94,7 +95,7 @@ const COMPARISON = [
   },
 ];
 
-export function AboutScreen({ onStart }: { onStart: () => void }) {
+export function AboutScreen({ onStart, onLoadSample }: { onStart: () => void; onLoadSample: () => void }) {
   return (
     <div className="space-y-4">
       <Card>
@@ -111,7 +112,11 @@ export function AboutScreen({ onStart }: { onStart: () => void }) {
           </p>
           <div className="mt-6 flex flex-wrap gap-2">
             <Button onClick={onStart}>開始試算</Button>
+            <Button variant="secondary" onClick={onLoadSample}>
+              先看範例資料
+            </Button>
           </div>
+          <p className="mt-3 text-xs leading-relaxed text-ink-3">{SAMPLE_NOTE}</p>
         </div>
       </Card>
 
