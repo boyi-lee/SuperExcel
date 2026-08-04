@@ -118,7 +118,8 @@ export function sampleDoc(): Doc {
           { id: "ru1", trigger: "AMOUNT", discount: "FIXED", threshold: 1000, value: 100 },
           { id: "ru2", trigger: "COUPON", discount: "PERCENT", threshold: 1000, value: 0.05 },
         ],
-        gifts: [{ id: "g1", trigger: "AMOUNT", threshold: 1200, itemKey: "p3", quantity: 1, stackable: false }],
+        // 門檻對齊主打組合的售價，這樣範例一載入就看得到贈品規則引擎在動。
+        gifts: [{ id: "g1", trigger: "AMOUNT", threshold: 800, itemKey: "p3", quantity: 1, stackable: false }],
         addOns: [{ id: "a1", itemKey: "p3", price: 99, quantity: 1 }],
       },
     ],

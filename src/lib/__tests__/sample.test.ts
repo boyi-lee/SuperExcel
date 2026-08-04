@@ -81,6 +81,12 @@ describe("範例資料", () => {
     expect(block!.saved).not.toBeNull();
   });
 
+  it("⚠️ 主打組合要觸發到贈品，否則規則引擎在範例裡看不出來", () => {
+    const block = buildContent(doc, doc.bundles[0].id)!;
+    expect(block.gifts.length).toBeGreaterThan(0);
+    expect(block.gifts[0].name).toBe("棉麻提袋");
+  });
+
   it("🚫 範例不能把物流或費率留成 0，那會讓人以為這些不用填", () => {
     expect(doc.rates.some((rate) => rate.kind === "LOGISTICS" && rate.value > 0)).toBe(true);
     expect(doc.rates.some((rate) => rate.kind === "PAYMENT" && rate.value > 0)).toBe(true);
